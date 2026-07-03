@@ -26,7 +26,7 @@ def ring_locations(radius: float, n: int) -> list[tuple[float, float]]:
     return [(float(radius * np.cos(theta)), float(radius * np.sin(theta))) for theta in angles]
 
 
-def ring_placement(
+def ring_placements(
     radius: float,
     n: int,
     margin: float | None = None,
@@ -49,7 +49,8 @@ def size_randomization(
     base_half_sizes: list,
     n: int,
     margin: float | None = None,
-    margins: list[float] = [0, 0, 0]
+    margins: list[float] = [0, 0, 0],
+    random_generator: RandomGenerator | None = None,
 ) -> list[list[float, float, float]]:
     """Axis-aligned sampling boxes centered on ring points (for random placement).
     Sampler shrinks each box by ``keepout`` on all sides; need ``margin > keepout``
@@ -58,10 +59,12 @@ def size_randomization(
     if margin != None: margins = [margin, margin, margin] if margins == [0, 0, 0] else margins
     x, y, z = base_half_sizes
     x_margin, y_margin, z_margin = margins
+
     assert any(np.array(base_half_sizes)-np.array(margins) > 0), "Margins should ensure non-negative values" 
-    return np.array([np.random.uniform(
+    
+    return np.array([random_generator.uniform(
         x-x_margin, x+x_margin, n),
-        np.random.uniform(
+        random_generator.uniform(
         y-y_margin, y+y_margin, n),
-        np.random.uniform(
+        random_generator.uniform(
         z-z_margin, z+z_margin, n)]).transpose()

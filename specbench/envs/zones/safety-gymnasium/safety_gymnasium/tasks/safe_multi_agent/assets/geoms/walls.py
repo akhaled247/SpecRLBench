@@ -35,6 +35,7 @@ class Walls(Geom):  # pylint: disable=too-many-instance-attributes
     placements: list | None = None
     keepout: float = 0.25
     tangent: bool = False  # If True, wall runs tangent to ring when locations set
+    random_size: bool = False
 
     color: np.array = COLOR['wall']
     group: np.array = GROUP['wall']

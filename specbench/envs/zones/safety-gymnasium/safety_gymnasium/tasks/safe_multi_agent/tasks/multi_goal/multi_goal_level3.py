@@ -28,7 +28,7 @@ MARGIN = 1.25
 
 class MultiGoalLevel3(BaseTask):
     """Multi-agent zone navigation with optional ring-placed interior walls."""
-
+    _cached_wall_half_sizes = None
     def __init__(self, config) -> None:
         super().__init__(config=config)
 
@@ -48,12 +48,11 @@ class MultiGoalLevel3(BaseTask):
             Zones(color='magenta', size=zone_size / 3, num=3, keepout=zone_size / 3 + 0.15),
             Zones(color='red', size=zone_size / 2, num=2, keepout=zone_size / 2 * 1.25),
             Walls(
-                name="inner_walls",
                 num=WALL_COUNT,
-                placements=ring_placement(
+                placements=ring_placements(
                     WALL_RING_RADIUS, WALL_COUNT, margin=MARGIN
                 ),
-                half_sizes=size_randomization([0.1, 0.3, 0.2], WALL_COUNT, margins=[0.05, 0.15, 0.1]),
+                half_sizes=[0.1, 0.3, 0.2],
                 keepout=0.4,
             ),
         )
@@ -73,6 +72,18 @@ class MultiGoalLevel3(BaseTask):
 
     def update_world(self):
         pass
+
+    def _build(self):
+        # self._cached_wall_half_sizes = size_randomization([0.1, 0.3, 0.2], WALL_COUNT, margins=[0.05, 0.15, 0.1], random_generator=self.random_generator) if self._cached_wall_half_sizes is None else self._cached_wall_half_sizes
+        # self._geoms.update({Walls.name: Walls(
+        #         num=WALL_COUNT,
+        #         placements=ring_placement(
+        #             WALL_RING_RADIUS, WALL_COUNT, margin=MARGIN
+        #         ),
+        #         half_sizes=self._cached_wall_half_sizes,
+        #         keepout=0.4,
+        #     )})
+        return super()._build()
 
     @property
     def goal_achieved(self):
