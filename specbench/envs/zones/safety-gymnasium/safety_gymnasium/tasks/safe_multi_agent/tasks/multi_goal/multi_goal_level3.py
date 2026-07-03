@@ -14,25 +14,25 @@
 # ==============================================================================
 """Multi Goal level 3."""
 
-# from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.goal import GoalBlue, GoalGreen, GoalMagenta, GoalYellow
-from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import Hazards
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_task import BaseTask
-
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import LtlWalls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import Walls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.zones import Zones
 from safety_gymnasium.tasks.safe_multi_agent.assets.mocaps.gremlins import Gremlins
-import numpy as np
-# from safety_gymnasium.tasks.safe_multi_agent.tasks.ltl.ltl_base_task import LtlBaseTask
+from safety_gymnasium.tasks.safe_multi_agent.utils.wall_utils import *
 
+# Ring layout for interior walls
+WALL_RING_RADIUS = 1.75
+WALL_COUNT = 24
+MARGIN = 1.25
 
 class MultiGoalLevel3(BaseTask):
-    """An agent must navigate to a goal."""
+    """Multi-agent zone navigation with optional ring-placed interior walls."""
 
     def __init__(self, config) -> None:
         super().__init__(config=config)
 
-        self.placements_conf.extents = [-3.0, -3.0, 3.0, 3.0]
+        self.placements_conf.extents = [-3.25, -3.25, 3.25, 3.25]
         self.lidar_conf.num_bins = 16
         self.lidar_conf.max_dist = None
         self.lidar_conf.exp_gain = 0.5
@@ -40,28 +40,29 @@ class MultiGoalLevel3(BaseTask):
         self.cost_conf.constrain_indicator = False
         self.observation_flatten = False
 
-        # env boundary walls
         self._add_geoms(LtlWalls())
 
-        # colored zones
-        zone_size = 0.5; keepout = 0.65
+        zone_size = 0.5
         self._add_geoms(
-            # Zones(color='green', size=zone_size, num=2, keepout=keepout),
-            Zones(color='gray', size=0.75, num=4, keepout=keepout),
-            Zones(color='magenta', size=0.25, num=3),
-            Zones(color='red', size=0.5, num=2, keepout=keepout),
-            Walls(num=3)
-            # Zones(color='magenta', size=zone_size, num=2, keepout=keepout)
-            
+            Zones(color='gray', size=0.5, num=2, keepout=zone_size * 1.25),
+            Zones(color='magenta', size=zone_size / 3, num=3, keepout=zone_size / 3 + 0.15),
+            Zones(color='red', size=zone_size / 2, num=2, keepout=zone_size / 2 * 1.25),
+            Walls(
+                name="inner_walls",
+                num=WALL_COUNT,
+                placements=ring_placement(
+                    WALL_RING_RADIUS, WALL_COUNT, margin=MARGIN
+                ),
+                half_sizes=size_randomization([0.1, 0.3, 0.2], WALL_COUNT, margins=[0.05, 0.15, 0.1]),
+                keepout=0.4,
+            ),
         )
 
-        # used to represent agents, just for lidar observation of other agents
         self._add_mocaps(
             Gremlins(num=config['agent_num'], size=0.28, dist_threshold=0.0, keepout=0.0)
         )
 
     def calculate_reward(self):
-        # return {'agent_0': 0.0, 'agent_1': 0.0}
         return {f'agent_{i}': 0.0 for i in range(self.agent.agent_num)}
 
     def specific_reset(self):
@@ -75,4 +76,4 @@ class MultiGoalLevel3(BaseTask):
 
     @property
     def goal_achieved(self):
-        return (False, False)
+        return tuple(False for _ in range(self.agent.agent_num))
