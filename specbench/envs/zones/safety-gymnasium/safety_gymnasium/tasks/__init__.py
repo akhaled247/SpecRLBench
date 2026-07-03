@@ -66,3 +66,4 @@ from safety_gymnasium.tasks.safe_vision.race.race_level1 import RaceLevel1
 from safety_gymnasium.tasks.safe_vision.race.race_level2 import RaceLevel2
 
 from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal.multi_goal_level0 import MultiGoalLevel0
+from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal.multi_goal_level3 import MultiGoalLevel3

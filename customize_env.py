@@ -76,7 +76,7 @@ env = safety_gymnasium.make(env_config['env_id'], render_mode='human')
 
 obs, info = env.reset(seed=0)
 
-for _ in range(1000):
+for _ in range(500):
     action = env.action_space.sample()
     env.step(action)
     env.render()
