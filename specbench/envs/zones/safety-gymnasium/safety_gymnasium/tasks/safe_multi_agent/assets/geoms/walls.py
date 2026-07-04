@@ -81,4 +81,4 @@ class Walls(Geom):  # pylint: disable=too-many-instance-attributes
     def pos(self):
         """Helper to get list of wall positions."""
         # pylint: disable-next=no-member
-        return [self.engine.data.body(f'{self.name.rstrip("s")}{i}').xpos.copy() for i in range(self.num)]
+        return [self.engine.data.body(f'{self.name[:-1]}{i}').xpos.copy() for i in range(self.num)]

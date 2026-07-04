@@ -109,7 +109,7 @@ env_names = [
 ]
 
 env_name = 'PointLTL3MA5-v0'
-steps = 250
+steps = 500
 print(f"="*40)
 env = make_env(env_name, render_mode="human")
 # env = FlattenObservation(gym.make(env_name, render_mode="human"))

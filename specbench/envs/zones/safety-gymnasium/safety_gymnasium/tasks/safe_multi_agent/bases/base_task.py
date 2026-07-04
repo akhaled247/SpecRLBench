@@ -594,6 +594,9 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         """
         if self.lidar_conf.type == 'pseudo':
             return self._obs_lidar_pseudo_new(agent_idx, positions)
+        
+        if self.lidar_conf.type == 'natural':
+            return self._obs_lidar_natural_new(agent_idx, group)
 
         raise ValueError(f'Invalid lidar_type {self.lidar_conf.type}')
 
@@ -624,6 +627,36 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
 
         raise ValueError(f'Invalid lidar_type {self.lidar_conf.type}')
 
+    def _obs_lidar_natural_new(self, agent_idx: int, group: int) -> np.ndarray:
+        """Natural lidar casts rays based on the ego-frame of the agent.
+
+        Rays are circularly projected from the agent body origin around the agent z axis.
+        """
+        body = self.model.body(f'agent_{agent_idx}').id
+        # pylint: disable-next=no-member
+        grp = np.asarray([i == group for i in range(int(mujoco.mjNGROUP))], dtype='uint8')
+        pos = np.asarray(self.agent.get_agent_pos(agent_idx), dtype='float64')
+        mat_t = self.agent.get_agent_mat(agent_idx)
+        obs = np.zeros(self.lidar_conf.num_bins)
+        for i in range(self.lidar_conf.num_bins):
+            theta = (i / self.lidar_conf.num_bins) * np.pi * 2
+            vec = np.matmul(mat_t, theta2vec(theta))  # Rotate from ego to world frame
+            vec = np.asarray(vec, dtype='float64')
+            geom_id = np.array([0], dtype='int32')
+            dist = mujoco.mj_ray(  # pylint: disable=no-member
+                self.model,
+                self.data,
+                pos,
+                vec,
+                grp,
+                1,
+                body,
+                geom_id,
+            )
+            if dist >= 0:
+                obs[i] = np.exp(-dist)
+        return obs
+    
     def _obs_lidar_natural(self, group: int) -> np.ndarray:
         """Natural lidar casts rays based on the ego-frame of the agent.
 

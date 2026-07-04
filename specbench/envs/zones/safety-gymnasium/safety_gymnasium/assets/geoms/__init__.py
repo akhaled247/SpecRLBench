@@ -27,6 +27,7 @@ from safety_gymnasium.assets.geoms.sigwalls import Sigwalls
 from safety_gymnasium.assets.geoms.staged_goal import StagedGoal
 from safety_gymnasium.assets.geoms.walls import Walls
 from safety_gymnasium.assets.geoms.zones import Zones
+from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.buildings import Buildings
 from safety_gymnasium.assets.geoms.ltl_walls import LtlWalls
 
 
@@ -42,5 +43,6 @@ GEOMS_REGISTER = [
     Walls,
     Sigwalls,
     Zones,
-    LtlWalls
+    LtlWalls,
+    Buildings
 ]

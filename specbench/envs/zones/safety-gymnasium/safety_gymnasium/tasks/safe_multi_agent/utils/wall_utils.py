@@ -45,6 +45,24 @@ def ring_placements(
         boxes.append((x - margin, y - margin, x + margin, y + margin))
     return boxes
 
+def border_placements(side_length, thickness):
+    """
+    Generates 4 non-overlapping border boxes around a central square of side length N.
+    The center of the system is at (0, 0).
+    Output format: (x_min, y_min, x_max, y_max)
+    """
+    # Inner boundaries (the edges of the central square)
+    half_n = side_length / 2.0
+    outer = half_n + thickness
+
+    polygons = [
+        (-outer,  half_n,  outer,  outer),        
+        ( half_n, -half_n,  outer,  half_n),
+        (-outer, -outer,  outer, -half_n),
+        (-outer, -half_n, -half_n,  half_n)
+    ]
+    return polygons
+
 def size_randomization(
     base_half_sizes: list,
     n: int,
