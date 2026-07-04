@@ -22,6 +22,7 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import LtlWalls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import Walls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.zones import Zones
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.buildings import Buildings
+from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.humans import Humans
 from safety_gymnasium.tasks.safe_multi_agent.assets.mocaps.gremlins import Gremlins
 from safety_gymnasium.tasks.safe_multi_agent.utils.wall_utils import *
 
@@ -52,11 +53,16 @@ class MultiGoalLevel3(BaseTask):
         self._add_geoms(
             Buildings(
                 color='light_gray',
-                alpha=1.0,
                 size=keepout*0.75,
                 num=6,
                 keepout=keepout,
                 placements = border_placements(side_length=3.5, thickness=keepout*4)),
+            Humans(
+                color='red',
+                size=0.05,
+                num=self.agent_num,
+                keepout=0.2,
+                placements = border_placements(side_length=3.0, thickness=2.0)),
             Zones(color='magenta', size=zone_size / 3, num=3, keepout=zone_size / 3 + 0.15),
             Zones(color='red', size=zone_size / 2, num=2, keepout=zone_size / 2 * 1.25),
             Walls(

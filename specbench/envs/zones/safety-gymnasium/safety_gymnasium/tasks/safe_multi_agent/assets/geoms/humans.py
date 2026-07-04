@@ -18,8 +18,8 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.group import GROUP
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_object import Geom
 
 
-class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
-    """Colored buildings."""
+class Humans(Geom):  # pylint: disable=too-many-instance-attributes
+    """Humans."""
 
     COLORS = {
         "green": np.array([0, 1, 0, 1]),
@@ -30,7 +30,7 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
 
     def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55):
         self.color_name = color
-        self.name = f'{color}_buildings'
+        self.name = f'{color}_humans'
         self.num = num
         self.size: float = size
         self.placements: list = placements  # Placements list for hazards (defaults to full extents)
@@ -59,8 +59,8 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
             'name': self.name,
             'pos': np.r_[xy_pos, self.size*2],
             'rot': rot,
-            'size': [self.size, self.size, self.size*2],
-            'type': 'box',
+            'size': [self.size, self.size],
+            'type': 'capsule',
             'contype': 0,
             'conaffinity': 0,
             'group': self.group,
@@ -78,22 +78,22 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         return geom
 
     def cal_cost(self):
-        # cost = {f'cost_buildings_{self.color_name}': 0}
-        # cost = {'agent_0': {f'cost_buildings_{self.color_name}': 0}, 
-        #         'agent_1': {f'cost_buildings_{self.color_name}': 0}}
-        cost = {agent: {f'cost_buildings_{self.color_name}': 0} for agent in self.agent.possible_agents}
+        # cost = {f'cost_humans_{self.color_name}': 0}
+        # cost = {'agent_0': {f'cost_humans_{self.color_name}': 0}, 
+        #         'agent_1': {f'cost_humans_{self.color_name}': 0}}
+        cost = {agent: {f'cost_humans_{self.color_name}': 0} for agent in self.agent.possible_agents}
         # print(f"self.pos: {self.pos}")
         for h_pos in self.pos:
             for i in range(self.agent.agent_num):
                 agent_h_dist = self.agent.dist_xy(i, h_pos)
                 if agent_h_dist <= self.size:
-                    cost[f'agent_{i}'][f'cost_buildings_{self.color_name}'] = 1.0
+                    cost[f'agent_{i}'][f'cost_humans_{self.color_name}'] = 1.0
             # agent0_h_dist = self.agent.dist_xy(0, h_pos)
             # agent1_h_dist = self.agent.dist_xy(1, h_pos)
             # if agent0_h_dist <= self.size:
-            #     cost['agent_0'][f'cost_buildings_{self.color_name}'] = 1
+            #     cost['agent_0'][f'cost_humans_{self.color_name}'] = 1
             # if agent1_h_dist <= self.size:
-            #     cost['agent_1'][f'cost_buildings_{self.color_name}'] = 1
+            #     cost['agent_1'][f'cost_humans_{self.color_name}'] = 1
         
         return cost
 
