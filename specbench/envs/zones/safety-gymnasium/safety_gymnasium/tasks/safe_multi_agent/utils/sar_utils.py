@@ -55,13 +55,31 @@ def border_placements(side_length, thickness):
     half_n = side_length / 2.0
     outer = half_n + thickness
 
-    polygons = [
+    boxes = [
         (-outer,  half_n,  outer,  outer),        
         ( half_n, -half_n,  outer,  half_n),
         (-outer, -outer,  outer, -half_n),
         (-outer, -half_n, -half_n,  half_n)
     ]
-    return polygons
+    return boxes
+
+def border_locations(
+        side_length: float, 
+        thickness: float, 
+        keepout: float,
+        num: int, 
+        random_generator: RandomGenerator):
+    """
+    Generates `num` amount of locations based on a specified border around the origin
+
+    Returns: A list of (x, y) locations from the `random_generator` that can be used
+    when updating locations in the `_build()` method of a task.
+    """
+    return [
+        random_generator.draw_placement(
+            placements=border_placements(side_length, thickness), 
+            keepout=keepout
+            ) for _ in range(num)]
 
 def size_randomization(
     base_half_sizes: list,

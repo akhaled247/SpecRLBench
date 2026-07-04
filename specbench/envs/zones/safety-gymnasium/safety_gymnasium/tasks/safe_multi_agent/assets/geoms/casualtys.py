@@ -18,19 +18,24 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.group import GROUP
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_object import Geom
 
 
-class Humans(Geom):  # pylint: disable=too-many-instance-attributes
-    """Humans."""
+class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
+    """Casualties. (Improper spelling, but makes workflow more standardized)"""
 
-    COLORS = {
-        "green": np.array([0, 1, 0, 1]),
-        "red": np.array([1, 0, 0, 1]),
-        "yellow": np.array([1, 1, 0, 1]),
-        "light_gray": np.array([0.75, 0.75, 0.75, 1.0]),
+    CATEGORIES = {
+        # "green": np.array([0, 1, 0, 1]),
+        # "red": np.array([1, 0, 0, 1]),
+        # "yellow": np.array([1, 1, 0, 1]),
+        # "light_gray": np.array([0.75, 0.75, 0.75, 1.0]),
+
+        # -----NOTE: THESE TWO KEYS MUST BE LEFT AT END OF DICTIONARY-----
+        "surface": np.array([1, 1, 0, 1]),
+        "entrapped": np.array([1, 0, 0, 1]),
+        # -----NOTE: THESE TWO KEYS MUST BE LEFT AT END OF DICTIONARY-----
     }
 
-    def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55):
-        self.color_name = color
-        self.name = f'{color}_humans'
+    def __init__(self, category: str, size: float, num: int, locations=None, placements=None, keepout=0.55):
+        self.color_name = category
+        self.name = f'{category}_casualtys'
         self.num = num
         self.size: float = size
         self.placements: list = placements  # Placements list for hazards (defaults to full extents)
@@ -41,7 +46,7 @@ class Humans(Geom):  # pylint: disable=too-many-instance-attributes
         # if self.color_name not in self.COLORS:
         #     self.color = self.COLORS['black']
         # else:
-        self.color: np.array = self.COLORS[self.color_name]
+        self.color: np.array = self.CATEGORIES[self.color_name]
         self.group: int = self.calculate_group()
         self.is_lidar_observed: bool = True
         self.is_constrained: bool = True
@@ -50,7 +55,7 @@ class Humans(Geom):  # pylint: disable=too-many-instance-attributes
     def calculate_group(self) -> int:
         # return GROUP['goal']
         max_predefined_group = max(GROUP.values())
-        return max_predefined_group + sorted(self.COLORS.keys()).index(self.color_name) + 1
+        return max_predefined_group + sorted(self.CATEGORIES.keys()).index(self.color_name) + 1
 
     def get_config(self, xy_pos, rot):
         """To facilitate get specific config for this object."""
@@ -78,22 +83,22 @@ class Humans(Geom):  # pylint: disable=too-many-instance-attributes
         return geom
 
     def cal_cost(self):
-        # cost = {f'cost_humans_{self.color_name}': 0}
-        # cost = {'agent_0': {f'cost_humans_{self.color_name}': 0}, 
-        #         'agent_1': {f'cost_humans_{self.color_name}': 0}}
-        cost = {agent: {f'cost_humans_{self.color_name}': 0} for agent in self.agent.possible_agents}
+        # cost = {f'cost_casualtys_{self.color_name}': 0}
+        # cost = {'agent_0': {f'cost_casualtys_{self.color_name}': 0}, 
+        #         'agent_1': {f'cost_casualtys_{self.color_name}': 0}}
+        cost = {agent: {f'cost_casualtys_{self.color_name}': 0} for agent in self.agent.possible_agents}
         # print(f"self.pos: {self.pos}")
         for h_pos in self.pos:
             for i in range(self.agent.agent_num):
                 agent_h_dist = self.agent.dist_xy(i, h_pos)
                 if agent_h_dist <= self.size:
-                    cost[f'agent_{i}'][f'cost_humans_{self.color_name}'] = 1.0
+                    cost[f'agent_{i}'][f'cost_casualtys_{self.color_name}'] = 1.0
             # agent0_h_dist = self.agent.dist_xy(0, h_pos)
             # agent1_h_dist = self.agent.dist_xy(1, h_pos)
             # if agent0_h_dist <= self.size:
-            #     cost['agent_0'][f'cost_humans_{self.color_name}'] = 1
+            #     cost['agent_0'][f'cost_casualtys_{self.color_name}'] = 1
             # if agent1_h_dist <= self.size:
-            #     cost['agent_1'][f'cost_humans_{self.color_name}'] = 1
+            #     cost['agent_1'][f'cost_casualtys_{self.color_name}'] = 1
         
         return cost
 

@@ -30,7 +30,7 @@ class Walls(Geom):  # pylint: disable=too-many-instance-attributes
     name: str = 'walls'
     num: int = 0
     # Single [thickness, half_length, half_height] for all walls, or one triple per wall.
-    half_sizes: list = field(default_factory=lambda: [0.05, 0.4, 0.2])
+    half_sizes: list = field(default_factory=lambda: [0.1, 0.3, 0.2])
     locations: list = field(default_factory=list)
     placements: list | None = None
     keepout: float = 0.25
