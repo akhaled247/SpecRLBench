@@ -351,7 +351,7 @@ def __combine_multi(tasks, agents, max_episode_steps):
 
             if MAKE_VISION_ENVIRONMENTS:
                 # Vision inputs
-                vision_env_name = f'{PREFIX}{robot_name}{task_name}Vision-{VERSION}'
+                vision_env_name = f'{robot_name}{task_name}Vision-{VERSION}'
                 vision_config = {
                     'observe_vision': True,
                     'observation_flatten': False,

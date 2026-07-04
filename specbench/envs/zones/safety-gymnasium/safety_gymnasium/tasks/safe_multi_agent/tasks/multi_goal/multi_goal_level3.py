@@ -14,6 +14,9 @@
 # ==============================================================================
 """Multi Goal level 3."""
 
+import gymnasium
+import mujoco
+
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_task import BaseTask
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import LtlWalls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import Walls
@@ -45,13 +48,15 @@ class MultiGoalLevel3(BaseTask):
         self._add_geoms(LtlWalls())
 
         zone_size = 0.5
-        keepout=0.5
+        keepout=0.3
         self._add_geoms(
-            Buildings(color='black', 
-                  size=0.3,
-                  num=6,
-                  keepout=keepout,
-                  placements = border_placements(side_length=4, thickness=keepout*4)),
+            Buildings(
+                color='light_gray',
+                alpha=1.0,
+                size=keepout*0.75,
+                num=6,
+                keepout=keepout,
+                placements = border_placements(side_length=3.5, thickness=keepout*4)),
             Zones(color='magenta', size=zone_size / 3, num=3, keepout=zone_size / 3 + 0.15),
             Zones(color='red', size=zone_size / 2, num=2, keepout=zone_size / 2 * 1.25),
             Walls(
@@ -79,7 +84,7 @@ class MultiGoalLevel3(BaseTask):
 
     def update_world(self):
         pass
-    
+
     def _build(self):
         self._cached_wall_half_sizes = size_randomization([0.1, 0.3, 0.2], WALL_COUNT, margins=[0.05, 0.15, 0.1], random_generator=self.random_generator) if self._cached_wall_half_sizes is None else self._cached_wall_half_sizes
         self._geoms.update({Walls.name: Walls(

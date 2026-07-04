@@ -22,25 +22,13 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
     """Colored buildings."""
 
     COLORS = {
-        "black": np.array([0, 0, 0, 1]),
-        "blue": np.array([0, 0, 1, 1]),
         "green": np.array([0, 1, 0, 1]),
-        "cyan": np.array([0, 1, 1, 1]),
         "red": np.array([1, 0, 0, 1]),
-        "magenta": np.array([1, 0, 1, 1]),
         "yellow": np.array([1, 1, 0, 1]),
-        "white": np.array([1, 1, 1, 1]),
-        "orange": np.array([1.0, 0.5, 0.0, 1.0]),
-        "purple": np.array([0.5, 0.0, 0.5, 1.0]),
-        "lime": np.array([0.5, 1.0, 0.0, 1.0]),
-        "teal": np.array([0.0, 0.5, 0.5, 1.0]),
-        "pink": np.array([1.0, 0.75, 0.8, 1.0]),
-        "brown": np.array([0.6, 0.3, 0.0, 1.0]),
-        "navy": np.array([0.0, 0.0, 0.5, 1.0]),
-        "gray": np.array([0.5, 0.5, 0.5, 1.0]),
+        "light_gray": np.array([0.75, 0.75, 0.75, 1.0]),
     }
 
-    def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55):
+    def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55, alpha: float = 0.25):
         self.color_name = color
         self.name = f'{color}_buildings'
         self.num = num
@@ -48,7 +36,7 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         self.placements: list = placements  # Placements list for hazards (defaults to full extents)
         self.locations: list = locations if locations else []  # Fixed locations to override placements
         self.keepout: float = keepout  # Radius of hazard keepout for placement
-        self.alpha: float = 0.25
+        self.alpha: float = alpha
         
         # if self.color_name not in self.COLORS:
         #     self.color = self.COLORS['black']
@@ -69,7 +57,7 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         # Return a flat geom config (single geom), compatible with World.build
         geom = {
             'name': self.name,
-            'pos': np.r_[xy_pos, self.size],
+            'pos': np.r_[xy_pos, self.size*2],
             'rot': rot,
             'size': [self.size, self.size, self.size*2],
             'type': 'box',
@@ -99,7 +87,7 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
             for i in range(self.agent.agent_num):
                 agent_h_dist = self.agent.dist_xy(i, h_pos)
                 if agent_h_dist <= self.size:
-                    cost[f'agent_{i}'][f'cost_buildings_{self.color_name}'] = 1
+                    cost[f'agent_{i}'][f'cost_buildings_{self.color_name}'] = 1.0
             # agent0_h_dist = self.agent.dist_xy(0, h_pos)
             # agent1_h_dist = self.agent.dist_xy(1, h_pos)
             # if agent0_h_dist <= self.size:

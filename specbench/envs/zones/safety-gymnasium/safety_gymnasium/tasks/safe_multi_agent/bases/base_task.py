@@ -564,8 +564,9 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                 obs[obstacle.name + '_comp'] = self._obs_compass(obstacle.pos)
 
         if self.observe_vision:
-            obs['vision_0'] = self._obs_vision()
-            obs['vision_1'] = self._obs_vision(camera_name='vision_1')
+            for i in range(self.agent.agent_num):
+                name = f'vision_{i}'
+                obs[name] = self._obs_vision(camera_name=name)
         # print(f"DEBUG: obs before flatten: {obs}")
         # assert self.obs_info.obs_space_dict.contains(
         #     obs,

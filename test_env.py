@@ -1,4 +1,5 @@
 import gymnasium as gym
+from numpy import uint8
 import specbench
 import safety_gymnasium
 from gymnasium.wrappers import FlattenObservation
@@ -109,9 +110,11 @@ env_names = [
 ]
 
 env_name = 'PointLTL3MA5-v0'
-steps = 500
+steps = 100
+
 print(f"="*40)
-env = make_env(env_name, render_mode="human")
+render_mode = "human" if 'Vision' not in env_name else None
+env = make_env(env_name, render_mode=render_mode)
 # env = FlattenObservation(gym.make(env_name, render_mode="human"))
 obs, info = env.reset(seed=seed)
 for i in range(steps):

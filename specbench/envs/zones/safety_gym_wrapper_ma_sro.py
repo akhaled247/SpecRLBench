@@ -27,7 +27,6 @@ class SafetyGymWrapperMASRO(gymnasium.Wrapper):
             # If it's a method, call with None (or agent name if needed)
             obs_space = obs_space(None)
         obs_keys = obs_space.spaces.keys()
-        # print(f"env.observation_space: {env.observation_space}")
         # obs_keys = env.observation_space["agent_0"].spaces.keys()
         # print(f"DEBUG: obs_keys = {obs_keys}")
         self.colors = set()
