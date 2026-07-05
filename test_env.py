@@ -109,7 +109,7 @@ env_names = [
     "SafetyPointBuildingGoal0-v0",
 ]
 
-env_name = 'PointLTL3MA5-v0'
+env_name = 'PointLTLMASAR5-v0'
 steps = 100
 
 print(f"="*40)

@@ -36,7 +36,7 @@ BUILDING_MARGIN = 0.8
 HUMAN_KEEPOUT = 0.2
 MARGIN = 1.25
 
-class MultiGoalLevel3(BaseTask):
+class MultiGoalSAR(BaseTask):
     """Multi-agent zone navigation with optional ring-placed interior walls."""
     _cached_wall_half_sizes = None
     _cached_building_locations = None
