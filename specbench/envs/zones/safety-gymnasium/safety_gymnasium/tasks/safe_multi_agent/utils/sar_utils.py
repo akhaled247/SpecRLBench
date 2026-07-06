@@ -25,6 +25,22 @@ def ring_locations(radius: float, n: int) -> list[tuple[float, float]]:
     angles = np.linspace(0, 2 * np.pi, n, endpoint=False)
     return [(float(radius * np.cos(theta)), float(radius * np.sin(theta))) for theta in angles]
 
+def draw_ring_placement(
+        radius: float,
+        n: int, 
+        margin: float, 
+        keepout: float,
+        random_generator: RandomGenerator):
+    """
+    Generates `num` amount of locations based on a specified border around the origin
+
+    Returns: A list of (x, y) locations from the `random_generator` that can be used
+    when updating locations in the `_build()` method of a task.
+    """
+    return random_generator.draw_placement(
+            placements=ring_placements(radius, n, margin, keepout), 
+            keepout=keepout
+            )
 
 def ring_placements(
     radius: float,
@@ -45,7 +61,7 @@ def ring_placements(
         boxes.append((x - margin, y - margin, x + margin, y + margin))
     return boxes
 
-def border_placements(side_length, thickness):
+def border_placements(side_length, margin):
     """
     Generates 4 non-overlapping border boxes around a central square of side length N.
     The center of the system is at (0, 0).
@@ -53,7 +69,7 @@ def border_placements(side_length, thickness):
     """
     # Inner boundaries (the edges of the central square)
     half_n = side_length / 2.0
-    outer = half_n + thickness
+    outer = half_n + margin
 
     boxes = [
         (-outer,  half_n,  outer,  outer),        
@@ -63,11 +79,10 @@ def border_placements(side_length, thickness):
     ]
     return boxes
 
-def border_locations(
+def draw_border_placement(
         side_length: float, 
-        thickness: float, 
+        margin: float, 
         keepout: float,
-        num: int, 
         random_generator: RandomGenerator):
     """
     Generates `num` amount of locations based on a specified border around the origin
@@ -75,11 +90,10 @@ def border_locations(
     Returns: A list of (x, y) locations from the `random_generator` that can be used
     when updating locations in the `_build()` method of a task.
     """
-    return [
-        random_generator.draw_placement(
-            placements=border_placements(side_length, thickness), 
+    return random_generator.draw_placement(
+            placements=border_placements(side_length, margin), 
             keepout=keepout
-            ) for _ in range(num)]
+            )
 
 def size_randomization(
     base_half_sizes: list,

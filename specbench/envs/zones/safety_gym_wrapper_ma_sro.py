@@ -9,7 +9,7 @@ from gymnasium.spaces import Box
 from specbench.utils.ltl.logic import Assignment
 
 
-class SafetyGymWrapperMASRO(gymnasium.Wrapper):
+class SafetyGymWrapperMASAR(gymnasium.Wrapper):
     """
     A wrapper from safety gymnasium LTL environments to the gymnasium API.
     """
@@ -113,6 +113,7 @@ class SafetyGymWrapperMASRO(gymnasium.Wrapper):
         for i, a in enumerate(self.env.possible_agents):
             # suffix = '' if i == 0 else f"_{i}"
             zone_info = info[a]
+            # print(obs[a])
             # print(zone_info)
             active_props = [c + '_' + str(i) for c in self.colors if zone_info[f'cost_zones_{c}'] > 0]
             info['propositions'].extend(active_props)

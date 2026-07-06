@@ -48,7 +48,7 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
         # else:
         self.color: np.array = self.CATEGORIES[self.color_name]
         self.group: int = self.calculate_group()
-        self.is_lidar_observed: bool = True
+        self.is_lidar_observed: bool = category != list(self.CATEGORIES)[-1]
         self.is_constrained: bool = True
         self.is_meshed: bool = False
 

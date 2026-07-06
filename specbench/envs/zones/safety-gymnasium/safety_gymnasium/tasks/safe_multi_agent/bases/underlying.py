@@ -245,11 +245,16 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
                 assert hasattr(self, key), f'Bad key {key}'
                 setattr(self, key, value)
 
-    def _build_agent(self, agent_name: str) -> None:
+    def _build_agent(self, agent_name: str, placements: list = None, keepout: float = None) -> None:
         """Build the agent in the world."""
         assert hasattr(agents, agent_name), 'agent not found'
         agent_cls = getattr(agents, agent_name)
-        self.agent = agent_cls(agent_num=self.agent_num, random_generator=self.random_generator)
+        # assert False, dir(agent_cls)
+        self.agent = agent_cls(
+            agent_num=self.agent_num, 
+            random_generator=self.random_generator, 
+            keepout = keepout if keepout is not None else 0.0,
+            placements=placements)
 
     def _add_geoms(self, *geoms: Geom) -> None:
         """Register geom type objects into environments and set corresponding attributes."""

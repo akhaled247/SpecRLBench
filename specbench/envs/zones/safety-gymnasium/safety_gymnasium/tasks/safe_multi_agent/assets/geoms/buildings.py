@@ -83,13 +83,13 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         # cost = {f'cost_buildings_{self.color}': 0}
         # cost = {'agent_0': {f'cost_buildings_{self.color}': 0}, 
         #         'agent_1': {f'cost_buildings_{self.color}': 0}}
-        cost = {agent: {f'cost_buildings_{self.color}': 0} for agent in self.agent.possible_agents}
+        cost = {agent: {f'cost_buildings_{self.color_name}': 0} for agent in self.agent.possible_agents}
         # print(f"self.pos: {self.pos}")
         for h_pos in self.pos:
             for i in range(self.agent.agent_num):
                 agent_h_dist = self.agent.dist_xy(i, h_pos)
                 if agent_h_dist <= self.size:
-                    cost[f'agent_{i}'][f'cost_buildings_{self.color}'] = 1.0
+                    cost[f'agent_{i}'][f'cost_buildings_{self.color_name}'] = 1.0
             # agent0_h_dist = self.agent.dist_xy(0, h_pos)
             # agent1_h_dist = self.agent.dist_xy(1, h_pos)
             # if agent0_h_dist <= self.size:

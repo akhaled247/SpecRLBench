@@ -11,11 +11,11 @@ def make_env(env_name, render_mode=None):
         env = gym.make(env_name, disable_env_checker=True, render_mode=render_mode)
     elif env_name.startswith("Point") or env_name.startswith("Car") or env_name.startswith("Ant"):
         from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
-        from specbench.envs.zones.safety_gym_wrapper_ma_sro import SafetyGymWrapperMASRO
+        from specbench.envs.zones.safety_gym_wrapper_ma_sro import SafetyGymWrapperMASAR
         from specbench.envs.zones.safety_gym_wrapper import SafetyGymWrapper
         import safety_gymnasium
         env = safety_gymnasium.make(env_name, disable_env_checker=True, render_mode=render_mode)
-        env = SafetyGymWrapperMASRO(env) if "LTL3" in env_name else SafetyGymWrapperMA(env) if "MA" in env_name else SafetyGymWrapper(env)
+        env = SafetyGymWrapperMASAR(env) if "SAR" in env_name else SafetyGymWrapperMA(env) if "MA" in env_name else SafetyGymWrapper(env)
     else:
         raise ValueError(f"Unknown environment name: {env_name}")
     return env
@@ -110,7 +110,7 @@ env_names = [
 ]
 
 env_name = 'PointLTLMASAR5-v0'
-steps = 100
+steps = 250
 
 print(f"="*40)
 render_mode = "human" if 'Vision' not in env_name else None

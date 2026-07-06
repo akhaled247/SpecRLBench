@@ -99,60 +99,24 @@ class Gremlins(Mocap):  # pylint: disable=too-many-instance-attributes
                 # if h_dist <= self.dist_threshold:
                 if h_dist <= self.size + self.dist_threshold:
                     # print(f"DEBUG: COLLISION, episode terminated")
-                    cost[f"agent_{j}"]["cost_collision"] = 1  # Same cost structure
-                    cost[f"agent_{i}"]["cost_collision"] = 1
+                    cost[f"agent_{j}"]["cost_collision"] = 1.0  # Same cost structure
+                    cost[f"agent_{i}"]["cost_collision"] = 1.0
                 # print(f"COST TRIGGERED for {self.color_name} zone {i}!")
         return cost
 
     def move(self):
         """Set mocap object positions before a physics step is executed."""
-        # get the positions of the agents and set the position of the gremlins accordingly
-        # print(f"self.pos: {self.pos}")
-        # agent_positions = [self.agent.pos_0[:2], self.agent.pos_1[:2]]
-        agent_poses = [self.agent.get_agent_pos(i) for i in range(self.agent.agent_num)]
-        # agent_positions = [[0, 0], [0, 0]]
-        # print(f"agent_positions: {agent_positions}")
-        # print(f"gremlin positions before move: {self.pos}")
-        # print(f"")
+        # Read from world engine (bound in World.bind_engine), not preview agent engine.
         for i in range(self.num):
+            agent_xy = self.engine.data.body(f'agent_{i}').xpos[:2]
             name = f'gremlin{i}'
-            target = agent_poses[i][:2]
-            # print(f"Setting gremlin {i} target to agent position: {target}")
-            pos = np.r_[target, [1e-3]]
+            pos = np.r_[agent_xy, [1e-3]]
             self.set_mocap_pos(name + 'mocap', pos)
             self.set_obj_pos(name + 'obj', pos)
-            # also directly modify the position of the obj
-
-    # def move(self):
-    #     """Set mocap object positions before a physics step is executed."""
-    #     phase = float(self.engine.data.time)
-    #     for i in range(self.num):
-    #         name = f'gremlin{i}'
-    #         target = np.array([np.sin(phase), np.cos(phase)]) * self.travel
-    #         pos = np.r_[target, [self.size]]
-    #         self.set_mocap_pos(name + 'mocap', pos)
-    #         self.set_obj_pos(name + 'obj', pos)
-
-
-    #     print(f"gremlin positions after move: {self.pos}, should be {target}")
-    #     # phase = float(self.engine.data.time)
-    #     # for i in range(self.num):
-    #     #     name = f'gremlin{i}'
-    #     #     target = np.array([np.sin(phase), np.cos(phase)]) * self.travel
-    #     #     pos = np.r_[target, [self.size]]
-    #     #     self.set_mocap_pos(name + 'mocap', pos)
 
     @property
     def pos(self):
         """Helper to get the current gremlin position."""
-        # pylint: disable-next=no-member
-        # gremlins_pos = [self.engine.data.body(f'gremlin{i}obj').xpos.copy() for i in range(self.num)]
-        # agent_pos = [self.agent.get_agent_pos(i) for i in range(self.agent.agent_num)]
-        # print(f"DEBUG gremlins_pos: {gremlins_pos}, agent_pos: {agent_pos}")
-        # if np.array(gremlins_pos) == np.array(agent_pos):
-        #     print(f"positioms match!")
-        # else:
-        #     print(f"positions do not match!")
-            # return gremlins_pos
-        return [self.agent.get_agent_pos(i) for i in range(self.agent.agent_num)]
-        return [self.engine.data.body(f'gremlin{i}obj').xpos.copy() for i in range(self.num)]
+        return [
+            self.engine.data.body(f'gremlin{i}obj').xpos.copy() for i in range(self.num)
+        ]

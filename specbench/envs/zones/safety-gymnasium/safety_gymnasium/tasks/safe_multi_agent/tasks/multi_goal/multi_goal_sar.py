@@ -25,16 +25,17 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.buildings import Build
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.casualtys import Casualtys
 from safety_gymnasium.tasks.safe_multi_agent.assets.mocaps.gremlins import Gremlins
 from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import *
+from safety_gymnasium.tasks.safe_multi_agent import agents
 
 # Ring layout for interior walls
-WALL_RING_RADIUS = 1.75
+WALL_RING_RADIUS = 2.0
 WALL_BASE_HALF_SIZES = [0.1, 0.3, 0.2]
 WALL_COUNT = 20
 BUILDING_KEEPOUT = 0.25
 BUILDING_BORDER_SIDE_LENGTH = 4.5
 BUILDING_MARGIN = 0.8
 HUMAN_KEEPOUT = 0.2
-MARGIN = 1.25
+WALL_MARGIN = 1.0
 
 class MultiGoalSAR(BaseTask):
     """Multi-agent zone navigation with optional ring-placed interior walls."""
@@ -49,9 +50,11 @@ class MultiGoalSAR(BaseTask):
         self.lidar_conf.max_dist = 2
         self.lidar_conf.exp_gain = 0.5
         self.lidar_conf.alias = True
-        self.lidar_conf.type = 'natural' # choices: 'pseudo' 'natural'
+        self.lidar_conf.type = 'pseudo' # choices: 'pseudo' 'natural'
         self.cost_conf.constrain_indicator = False
         self.observation_flatten = False
+
+        self._build_agent(self.agent_name, keepout=0.2, placements=[(-0.67, -0.67, 0.67, 0.67)])
 
         self._add_geoms(
             LtlWalls(),
@@ -77,8 +80,10 @@ class MultiGoalSAR(BaseTask):
         )
 
         self._add_mocaps(
-            Gremlins(num=config['agent_num'], size=0.28, dist_threshold=0.0, keepout=0.0)
+            Gremlins(num=config['agent_num'], size=0.15, dist_threshold=0.0, keepout=0.0)
         )
+
+
 
     def calculate_reward(self):
         return {f'agent_{i}': 0.0 for i in range(self.agent.agent_num)}
@@ -89,7 +94,7 @@ class MultiGoalSAR(BaseTask):
         pass
 
     def specific_step(self):
-        pass
+        return super().specific_step()
 
     def update_world(self):
         pass
@@ -99,6 +104,13 @@ class MultiGoalSAR(BaseTask):
         self._geoms[geom.name] = geom
         setattr(self, geom.name, geom)
         geom.set_agent(self.agent)
+
+    # def _build_agent(self, agent_name, locations: list = None):
+    #     """Build the agent in the world."""
+    #     assert hasattr(agents, agent_name), 'agent not found'
+    #     agent_cls = getattr(agents, agent_name)
+    #     self.agent = agent_cls(agent_num=self.agent_num, random_generator=self.random_generator,
+    #                            locations=locations)
 
     def _build(self):
         # randomized wall sizes that persist between runs
@@ -111,20 +123,19 @@ class MultiGoalSAR(BaseTask):
         self._replace_geom(Walls(
                 num=WALL_COUNT,
                 placements=ring_placements(
-                    WALL_RING_RADIUS, WALL_COUNT, margin=MARGIN
+                    WALL_RING_RADIUS, WALL_COUNT, margin=WALL_MARGIN
                 ),
                 half_sizes=self._cached_wall_half_sizes,
                 keepout=0.4,
             ))
         
         # randomized building/entrapped casualty locations that persist between runs
-        self._cached_building_locations = border_locations(
+        self._cached_building_locations = [draw_border_placement(
             BUILDING_BORDER_SIDE_LENGTH,
             BUILDING_MARGIN,
             BUILDING_KEEPOUT,
-            self.agent_num,
-            random_generator=self.random_generator
-            ) if self._cached_building_locations is None else self._cached_building_locations
+            self.random_generator
+            ) for _ in range(self.agent_num)] if self._cached_building_locations is None else self._cached_building_locations
         self._replace_geom(Buildings(
                 color=list(Buildings.COLORS)[0],
                 size=BUILDING_KEEPOUT*0.75,
@@ -139,7 +150,35 @@ class MultiGoalSAR(BaseTask):
                 num=self.agent_num//2,
                 keepout=0.0,
                 locations = self._cached_building_locations))
-                
+        
+        # randomized agent locations within inner ring that persist between runs
+        # self._cached_agent_locations = draw_ring_placements(
+        #     radius=0.2,
+        #     margin = 0.2,
+        #     keepout = 0.1,
+        #     num = 5,
+        #     random_generator=self.random_generator
+        # ) if self._cached_building_locations is None else self._cached_building_locations
+        
+        # def _build_agent(self: MultiGoalSAR):
+        #     # randomized agent locations within inner ring that persist between runs
+        #     self._cached_agent_locations = draw_ring_placements(
+        #         radius=0.2,
+        #         margin = 0.2,
+        #         keepout = 0.1,
+        #         num = 5,
+        #         random_generator=self.random_generator
+        #     ) if self._cached_building_locations is None else self._cached_building_locations
+        #     print(f'{inspect.signature(self.super()._build_agent()).parameters}')
+        #     breakpoint()
+        #     return super()._build_agent(
+        #         self.agent_name, 
+        #         agent_locations=self._cached_agent_locations)
+        
+        # _build_agent(self)
+        # return self.super()._build()
+
+
         return super()._build()
 
     @property
