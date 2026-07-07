@@ -14,6 +14,8 @@
 # ==============================================================================
 
 from dataclasses import dataclass
+import re
+from types import NoneType
 
 import numpy as np
 from safety_gymnasium.tasks.safe_multi_agent.assets.color import COLOR
@@ -30,28 +32,55 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
     name: str = 'ltl_walls'
     num: int = 4
     locate_factor: float = 3.5
+    theta: float = 0
     collision_threshold: float = 3.3
     size: float = 3.5
+    height: float = 0.25
     placements: list = None
+    locations: list = None 
     keepout: float = 0.0
-
+    rots: list = None
     color: np.array = COLOR['wall']
     alpha: float = 0.9
     group: np.array = GROUP['wall']
     is_lidar_observed: bool = False
+    d_x: float = 0.0
+    d_y: float = 0.0
+    h_index: int = None
 
     def __post_init__(self) -> None:
+        try:
+            self.h_index = int(re.search(r"\d+", self.name).group())
+            self.theta = self.rots[self.h_index]
+            self.color = COLOR['terracotta']
+        except Exception as e:
+            pass
         assert self.num in (2, 4)
         assert (
             self.locate_factor >= 0
         ), 'For cost calculation, the locate_factor must be greater than or equal to zero.'
-        self.locations: list = [
-            (self.locate_factor, 0),
-            (-self.locate_factor, 0),
-            (0, self.locate_factor),
-            (0, -self.locate_factor),
-        ]
+        # print(f"LOCATIONS: {self.locations}") Good
+        
+        if self.locations is not None:
+            self.d_x, self.d_y = self.locations[0], self.locations[1]
 
+        self.locations: list = [
+            (self.locate_factor+self.d_x, self.d_y),
+            (-self.locate_factor+self.d_x, self.d_y),
+            (self.d_x, self.locate_factor+self.d_y),
+            (self.d_x, -self.locate_factor+self.d_y),
+        ]
+        # print(f"LOCATIONS: {self.locations}") Good
+
+        cos_t, sin_t = np.cos(self.theta), np.sin(self.theta)
+        self.locations = [
+            (
+                (x - self.d_x) * cos_t - (y - self.d_y) * sin_t + self.d_x,  # New X
+                (x - self.d_x) * sin_t + (y - self.d_y) * cos_t + self.d_y   # New Y
+            )
+            for x, y in self.locations
+        ]
+        # print(f"LOCATIONS: {self.locations}") Good
         self.index: int = 0
 
     def index_tick(self):
@@ -61,6 +90,8 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
 
     def get_config(self, xy_pos, rot):  # pylint: disable=unused-argument
         """To facilitate get specific config for this object."""
+        # print(f"LOCATIONS: {self.locations}")
+
         # body = {
         #     'name': self.name,
         #     'pos': np.r_[xy_pos, 0.25],
@@ -77,19 +108,19 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
         #         },
         #     ],
         # }
+        # print(f"LOCATIONS: {self.locations}")
+        rot = [np.arctan2(y - self.d_y, x - self.d_x) for x, y in self.locations][self.index]
         body = {
             'name': self.name,
-            'pos': np.r_[xy_pos, 0.25],
-            'rot': 0,
-            'size': np.array([0.05, self.size, 0.3]),
+            'pos': np.r_[xy_pos, self.height],
+            'rot': rot,
+            'size': np.array([0.025, self.size, self.height]),
             'type': 'box',
             'contype': 0,
             'conaffinity': 0,
             'group': self.group,
             'rgba': self.color * np.array([1, 1, 1, self.alpha]),
         }
-        if self.index >= 2:
-            body.update({'rot': np.pi / 2})
         self.index_tick()
         return body
 

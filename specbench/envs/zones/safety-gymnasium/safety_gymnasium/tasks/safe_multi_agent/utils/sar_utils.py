@@ -95,6 +95,23 @@ def draw_border_placement(
             keepout=keepout
             )
 
+def draw_border_placement_from_loop(
+        side_length: float, 
+        margin: float, 
+        keepout: float,
+        i: int, 
+        random_generator: RandomGenerator):
+    """
+    Generates `num` amount of locations based on a specified border around the origin
+
+    Returns: A list of (x, y) locations from the `random_generator` that can be used
+    when updating locations in the `_build()` method of a task.
+    """
+    return random_generator.draw_placement(
+            placements=[border_placements(side_length, margin)[i%4]], 
+            keepout=keepout
+            )
+
 def size_randomization(
     base_half_sizes: list,
     n: int,

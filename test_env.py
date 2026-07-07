@@ -110,7 +110,7 @@ env_names = [
 ]
 
 env_name = 'PointLTLMASAR5-v0'
-steps = 250
+steps = 100
 
 print(f"="*40)
 render_mode = "human" if 'Vision' not in env_name else None

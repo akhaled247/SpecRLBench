@@ -13,6 +13,8 @@
 # limitations under the License.
 # ==============================================================================
 
+from dataclasses import field
+
 import numpy as np
 from safety_gymnasium.tasks.safe_multi_agent.assets.group import GROUP
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_object import Geom
@@ -30,15 +32,16 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         "light_gray": np.array([0.75, 0.75, 0.75, 1.0]),
     }
 
-    def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55, debug: bool = False):
+    def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55, debug: bool=False, rots=None):
         self.color_name = color
         self.name = f'{color}_buildings'
-        self.num = num
+        self.num = num 
         self.size: float = size
         self.placements: list = placements  # Placements list for hazards (defaults to full extents)
         self.locations: list = locations if locations else []  # Fixed locations to override placements
+        self.rots: list = rots
         self.keepout: float = keepout  # Radius of hazard keepout for placement
-        self.alpha: float = 1.0 if not debug else 0.25
+        self.alpha: float = 0.0 if not debug else 0.25
         
         # if self.color_name not in self.COLORS:
         #     self.color = self.COLORS['black']
@@ -49,6 +52,9 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         self.is_constrained: bool = True
         self.is_meshed: bool = False
 
+    def process_config(self, config, layout, rots):
+        return super().process_config(config, layout, np.zeros(self.num) if self.rots is None else self.rots )
+    
     def calculate_group(self) -> int:
         # return GROUP['goal']
         max_predefined_group = max(GROUP.values())
@@ -58,7 +64,7 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         """To facilitate get specific config for this object."""
         # Return a flat geom config (single geom), compatible with World.build
         geom = {
-            'name': self.name,
+            'name': 'self.name',
             'pos': np.r_[xy_pos, self.size*3],
             'rot': rot,
             'size': [self.size, self.size, self.size*3],

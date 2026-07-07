@@ -40,4 +40,5 @@ COLOR = {
     "yellow": np.array([1, 1, 0, 0.25]),
     "black": np.array([0, 0, 0, 0.25]),
     "red": np.array([1, 0, 0, 1]), # np.array([1, 0, 0, 0.25]),
+    "terracotta": np.array([226, 125, 91, 255])/255,
 }
