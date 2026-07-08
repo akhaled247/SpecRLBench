@@ -17,7 +17,12 @@ def make_env(env_name, render_mode=None):
         env = safety_gymnasium.make(env_name, disable_env_checker=True, render_mode=render_mode)
         env = SafetyGymWrapperMASAR(env) if "SAR" in env_name else SafetyGymWrapperMA(env) if "MA" in env_name else SafetyGymWrapper(env)
     else:
-        raise ValueError(f"Unknown environment name: {env_name}")
+        # env = gym.make(env_name, disable_env_checker=True, render_mode=render_mode)
+        try:
+            import safety_gymnasium
+            env = safety_gymnasium.make(env_name, disable_env_checker=True, render_mode=render_mode)
+        except Exception as e:
+            raise ValueError(f"Unknown environment name: {env_name}")
     return env
 
 seed = 0
@@ -109,8 +114,8 @@ env_names = [
     "SafetyPointBuildingGoal0-v0",
 ]
 
-env_name = 'PointLTLMASAR5-v0'
-steps = 100
+env_name = 'PointLTLMASAR5Debug-v0'
+steps = 750
 
 print(f"="*40)
 render_mode = "human" if 'Vision' not in env_name else None
@@ -123,6 +128,7 @@ for i in range(steps):
     except:
         action = {a: env.action_space(a).sample() for a in env.possible_agents}
     obs, reward, terminated, truncated, info = env.step(action)
+    # env.render()
 
     # if any(terminated.values()):
     #     print('Terminated')

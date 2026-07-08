@@ -397,11 +397,12 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
         color: np.ndarray,
         offset: float,
         group: int,
+        obstacle=None,
     ) -> None:
         """Render the lidar observation."""
         agent_pos = self.agent.get_agent_pos(agent_index)
         agent_mat = self.agent.get_agent_mat(agent_index)
-        lidar = self._obs_lidar_new(agent_index, poses, group)
+        lidar = self._obs_lidar_new(agent_index, poses, group, obstacle=obstacle)
         for i, sensor in enumerate(lidar):
             if self.lidar_conf.type == 'pseudo':  # pylint: disable=no-member
                 i += 0.5  # Offset to center of bin
@@ -596,15 +597,19 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
                     # self._render_lidar(obstacle.pos, obstacle.color, offset, obstacle.group)
                     # self._render_lidar1(obstacle.pos, obstacle.color, offset, obstacle.group)
                     if 'gremlins' in obstacle.name:
-                        for i in range(self.agent.agent_num):
+                        for i in range(1): #range(self.agent.agent_num)
                             # name = f"{obstacle.name}_lidar_{i}"
                             # print(f"DEBUG: obstacle.pos before processing: {obstacle.pos}")
                             poses = obstacle.pos.copy() # need to exclude self agent
                             del poses[i]
-                            self._render_lidar_new(i, poses, obstacle.color, offset, obstacle.group)
+                            self._render_lidar_new(
+                                i, poses, obstacle.color, offset, obstacle.group, obstacle=obstacle,
+                            )
                     else:
                         for i in range(self.agent.agent_num):
-                            self._render_lidar_new(i, obstacle.pos, obstacle.color, offset, obstacle.group)
+                            self._render_lidar_new(
+                                i, obstacle.pos, obstacle.color, offset, obstacle.group, obstacle=obstacle,
+                            )
                 if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                     self._render_compass(
                         getattr(self, obstacle.name + '_pos'),
@@ -663,7 +668,13 @@ class Underlying(abc.ABC):  # pylint: disable=too-many-instance-attributes
         self.viewer.data = data
 
     @abc.abstractmethod
-    def _obs_lidar_new(self, agent_index: int, positions: np.ndarray, group: int) -> np.ndarray:
+    def _obs_lidar_new(
+        self,
+        agent_index: int,
+        positions: np.ndarray,
+        group: int,
+        obstacle=None,
+    ) -> np.ndarray:
         """Calculate and return a lidar observation.  See sub methods for implementation."""
 
     @abc.abstractmethod

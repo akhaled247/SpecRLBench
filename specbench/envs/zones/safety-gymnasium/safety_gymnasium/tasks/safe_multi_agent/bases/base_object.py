@@ -58,6 +58,7 @@ class BaseObject(abc.ABC):
     engine: Engine = None
     random_generator: RandomGenerator = None
     agent: BaseAgent = None
+    exterior: bool = True
 
     def cal_cost(self) -> dict:
         """Calculate the cost of the obstacle.

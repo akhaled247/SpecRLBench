@@ -41,13 +41,13 @@ class Buildings(Geom):  # pylint: disable=too-many-instance-attributes
         self.locations: list = locations if locations else []  # Fixed locations to override placements
         self.rots: list = rots
         self.keepout: float = keepout  # Radius of hazard keepout for placement
-        self.alpha: float = 0.0 if not debug else 0.25
+        self.alpha: float = 1e-2 if not debug else 0.25
         
         # if self.color_name not in self.COLORS:
         #     self.color = self.COLORS['black']
         # else:
         self.color: np.array = self.COLORS[self.color_name]
-        self.group: int = self.calculate_group()
+        self.group: int = GROUP['wall']
         self.is_lidar_observed: bool = True
         self.is_constrained: bool = True
         self.is_meshed: bool = False

@@ -8,7 +8,6 @@ from gymnasium.spaces import Box
 
 from specbench.utils.ltl.logic import Assignment
 
-
 class SafetyGymWrapperMASAR(gymnasium.Wrapper):
     """
     A wrapper from safety gymnasium LTL environments to the gymnasium API.
@@ -98,35 +97,59 @@ class SafetyGymWrapperMASAR(gymnasium.Wrapper):
             #     info["agent_1"]['cost_collision'] > 0
             for i, a in enumerate(self.env.possible_agents):
                 terminated[a] = terminated[a] or \
-                    info[a]['cost_ltl_walls'] > 0 or \
-                    info[a]['cost_collision'] > 0
+                    info[a]['cost_ltl_walls'] > 0
                 if info[a]['cost_ltl_walls'] > 0:
                     print(f"DEBUG: wall collision detected for {a}!")
                 if info[a]['cost_collision'] > 0:
-                    print(f"DEBUG: agent collision detected for {a}!")
+                    reward[a] -= 1.0
+                    # print(f"DEBUG: agent collision detected for {a}!")
             
             # if any(terminated.values()):
             #     print(f"DEBUG: collision detected!")
                 # info['violation'] = True
 
         info['propositions'] = []
+        
         for i, a in enumerate(self.env.possible_agents):
             # suffix = '' if i == 0 else f"_{i}"
-            zone_info = info[a]
-            # print(obs[a])
-            # print(zone_info)
-            active_props = [c + '_' + str(i) for c in self.colors if zone_info[f'cost_zones_{c}'] > 0]
+            agent_info: dict = info[a]
+            # print(zone_info) if i==0 else print('')
+            # active_props = [c + '_' + str(i) for c in self.colors if zone_info[f'cost_zone_{c}'] > 0]
+            # active_props = [cost for cost in zone_info.values() if cost > 0]
+            # info['propositions'].extend(active_props)
+            active_props = {}
+            for k, v in agent_info.items():
+                if (isinstance(v, (int, float))):
+                    if v > 0 and "cost_sum" not in k:
+                        # print((k, v))
+                        active_props.update({f"{k}_{i}": v})
+            # ap = {k: v for k, v in zone_info.items() if v > 0}
+            # print(active_props) if i==0 else print('')
             info['propositions'].extend(active_props)
+            if f'cost_buildings_terracotta_{i}' in info['propositions']:
+                # print('Agent '+str(i)+' in building')
+                # terminated[a] = True
+                reward[f"agent_{i}"] += 0.05
+            else:
+                obs[a][f'entrapped_casualtys_lidar_{i}'] = np.zeros(obs[a][f'entrapped_casualtys_lidar_{i}'].size)
+                pass
+            if f'cost_casualtys_surface_{i}' in info['propositions']:
+                # print('Agent '+str(i)+' found entrapped casualty')
+                # terminated[a] = True
+                reward[f"agent_{i}"] += 0.5
+            if f'cost_casualtys_entrapped_{i}' in info['propositions']:
+                # print('Agent '+str(i)+' found entrapped casualty')
+                # terminated[a] = True
+                reward[f"agent_{i}"] += 1.0
+            
+            lidar_keys = [k for k in obs[a] if "lidar" in k]
+            arr = np.stack([obs[a][k] for k in lidar_keys])
+            if i == 0: print(lidar_keys)
+            if i == 0: print(arr)
+            # if i == 0: print(obs[a])
 
-            if f'yellow_{i}' in info['propositions']:
-                # print('Agent '+str(i)+' in yellow env')
-                # terminated[a] = True
-                reward[f"agent_{i}"] = -1.0
-            if 'blue_'+str(i) in info['propositions']:
-                # print('Agent '+str(i)+' in yellow env')
-                # terminated[a] = True
-                reward[f"agent_{i}"] = 1.0 if reward[f"agent_{i}"] == 0.0 else reward[f"agent_{i}"]
-        
+        # print(obs["agent_0"]['surface_casualtys_lidar_0'])
+        # print(reward)
         # print(info['propositions'])
         # for i, a in enumerate(self.env.possible_agents):
         #     if 'yellow_'+str(i) in info['propositions']:

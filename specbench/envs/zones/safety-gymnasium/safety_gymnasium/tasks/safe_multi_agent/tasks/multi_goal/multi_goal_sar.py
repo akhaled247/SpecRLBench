@@ -50,12 +50,14 @@ class MultiGoalSAR(BaseTask):
 
         self.placements_conf.extents = [-3.5, -3.5, 3.5, 3.5]
         self.lidar_conf.num_bins = 16
-        self.lidar_conf.max_dist = 2
+        self.lidar_conf.max_dist = 2.0
         self.lidar_conf.exp_gain = 0.5
         self.lidar_conf.alias = True
-        self.lidar_conf.type = 'pseudo' # choices: 'pseudo' 'natural'
+        self.lidar_conf.type = 'pseudo_occluded'  # choices: 'pseudo' 'natural' 'pseudo_occluded'
         self.cost_conf.constrain_indicator = False
         self.observation_flatten = False
+        self.render_conf.lidar_markers = False
+        # self.render_conf.lidar_size = 1.0
 
         self._build_agent(self.agent_name, keepout=0.2, placements=[(-0.67, -0.67, 0.67, 0.67)])
 
@@ -64,6 +66,7 @@ class MultiGoalSAR(BaseTask):
 
         self._add_geoms(
             LtlWalls(),
+            # Zones(color='green', size=0.3, num=2, keepout=0.5),
             Buildings(
                 color=list(Buildings.COLORS)[0],
                 size=BUILDING_KEEPOUT*0.75,
@@ -82,11 +85,11 @@ class MultiGoalSAR(BaseTask):
         )
 
         self._add_mocaps(
-            Gremlins(num=config['agent_num'], size=0.1, dist_threshold=0.0, keepout=0.0)
+            Gremlins(num=config['agent_num'], size=0.15, dist_threshold=0.15, keepout=0.0)
         )
 
     def calculate_reward(self):
-        return {f'agent_{i}': 0.0 for i in range(self.agent.agent_num)}
+        return {f'agent_{i}': 0.0 for i in range(self.agent_num)}
 
     def specific_reset(self):
         # print(f"GEOM KEYS: {(self._geoms.keys())}")
@@ -167,6 +170,58 @@ class MultiGoalSAR(BaseTask):
             
         return super()._build()
 
+    def obs(self) -> dict | np.ndarray:
+        """Return the observation of our agent."""
+        # pylint: disable-next=no-member
+        mujoco.mj_forward(self.model, self.data)  # Needed to get sensor's data correct
+        obs = {}
+
+        obs.update(self.agent.obs_sensor())
+
+        # observations of obstacles
+        for obstacle in self._obstacles:
+            if "terracotta" in obstacle.name and "building" in obstacle.name and any(obstacle.cal_cost())>0:
+                inside_building = True
+            # print(f"obstacle.name: {obstacle.name}, obstacle.pos: {obstacle.pos}, obstacle.group: {obstacle.group}")
+            if obstacle.is_lidar_observed:
+                if 'gremlins' in obstacle.name:
+                    for i in range(self.agent_num):
+                        name = f"{obstacle.name}_lidar_{i}"
+                        poses = obstacle.pos.copy()
+                        del poses[i]
+                        obs[name] = self._obs_lidar_new(
+                            i, poses, obstacle.group, obstacle=obstacle,
+                        )
+                elif inside_building and ("entrapped" in obstacle.name or obstacle.name == "walls"):
+                    for i in range(self.agent_num):
+                        name = f"{obstacle.name}_lidar_{i}"
+                        obs[name] = self._obs_lidar_pseudo_new(i, obstacle.pos)
+                    # print(f"DEBUG: obstacle names: {str(obstacle.name)}")
+                else:
+                    for i in range(self.agent_num):
+                        name = f"{obstacle.name}_lidar_{i}"
+                        obs[name] = self._obs_lidar_new(
+                            i, obstacle.pos, obstacle.group, obstacle=obstacle,
+                        )                
+
+                
+            if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
+                obs[obstacle.name + '_comp'] = self._obs_compass(obstacle.pos)
+
+        if self.observe_vision:
+            for i in range(self.agent_num):
+                name = f'vision_{i}'
+                obs[name] = self._obs_vision(camera_name=name)
+        # print(f"DEBUG: obs before flatten: {obs}")
+        # assert self.obs_info.obs_space_dict.contains(
+        #     obs,
+        # ), f'Bad obs {obs} {self.obs_info.obs_space_dict}'
+        # print(f"obs: {obs}")
+        # self.original_obs = obs
+        if self.observation_flatten:
+            obs = gymnasium.spaces.utils.flatten(self.obs_info.obs_space_dict, obs)
+        return obs
+
     @property
     def goal_achieved(self):
-        return tuple(False for _ in range(self.agent.agent_num))
+        return tuple(False for _ in range(self.agent_num))

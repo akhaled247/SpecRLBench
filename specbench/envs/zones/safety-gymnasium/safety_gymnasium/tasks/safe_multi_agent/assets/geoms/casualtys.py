@@ -42,13 +42,14 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
         self.locations: list = locations if locations else []  # Fixed locations to override placements
         self.keepout: float = keepout  # Radius of hazard keepout for placement
         self.alpha: float = 1.0
+        self.exterior: bool = (keepout > 0)
         
         # if self.color_name not in self.COLORS:
         #     self.color = self.COLORS['black']
         # else:
         self.color: np.array = self.CATEGORIES[self.color_name]
-        self.group: int = self.calculate_group()
-        self.is_lidar_observed: bool = category != list(self.CATEGORIES)[-1]
+        self.group: int = GROUP['casualty']
+        self.is_lidar_observed: bool = True
         self.is_constrained: bool = True
         self.is_meshed: bool = False
 
@@ -60,6 +61,7 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
     def get_config(self, xy_pos, rot):
         """To facilitate get specific config for this object."""
         # Return a flat geom config (single geom), compatible with World.build
+        # print(f"DEBUG: size={self.size}")
         geom = {
             'name': self.name,
             'pos': np.r_[xy_pos, self.size*2],
@@ -67,7 +69,7 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
             'size': [self.size, self.size],
             'type': 'capsule',
             'contype': 0,
-            'conaffinity': 0,
+            'conaffinity': 0,   
             'group': self.group,
             'rgba': self.color * np.array([1.0, 1.0, 1.0, self.alpha]),
         }
@@ -91,7 +93,7 @@ class Casualtys(Geom):  # pylint: disable=too-many-instance-attributes
         for h_pos in self.pos:
             for i in range(self.agent.agent_num):
                 agent_h_dist = self.agent.dist_xy(i, h_pos)
-                if agent_h_dist <= self.size:
+                if agent_h_dist <= self.size+0.1:
                     cost[f'agent_{i}'][f'cost_casualtys_{self.color_name}'] = 1.0
             # agent0_h_dist = self.agent.dist_xy(0, h_pos)
             # agent1_h_dist = self.agent.dist_xy(1, h_pos)

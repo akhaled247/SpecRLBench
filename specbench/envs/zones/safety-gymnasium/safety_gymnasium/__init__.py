@@ -367,7 +367,7 @@ def __combine_multi(tasks, agents, max_episode_steps):
 
             if MAKE_DEBUG_ENVIRONMENTS and robot_name in ['Point', 'Car', 'Racecar']:
                 # Keyboard inputs for debugging
-                debug_env_name = f'{PREFIX}{robot_name}{task_name}Debug-{VERSION}'
+                debug_env_name = f'{robot_name}{task_name}Debug-{VERSION}'
                 debug_config = {'debug': True}
                 debug_config.update(combined_config)
                 __register_helper(

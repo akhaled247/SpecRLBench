@@ -19,13 +19,15 @@ GROUP = {
     # We use these for ray casting lidar, where there are different lidar types.
     # These work by turning "on" the group to see and "off" all the other groups.
     # See _obs_lidar_natural() for more.
-    'push_box': 1,
-    'button': 1,
-    'wall': 2,
-    'pillar': 2,
+    'push_box': 4,
+    'button': 4,
+    'casualty': 1,
+    'gremlin': 1,
+    'wall': 1,
+    'ltl_wall': 2,
+    'pillar': 3,
     'hazard': 3,
-    'vase': 4,
-    'gremlin': 5,
+    'vase': 5,
     'circle': 6,
     'apple': 7,
     'orange': 8,

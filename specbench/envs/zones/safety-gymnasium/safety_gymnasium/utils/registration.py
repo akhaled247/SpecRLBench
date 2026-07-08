@@ -90,7 +90,7 @@ def make(
         assert isinstance(id, str)
         # safe_registry_custom = []
         # for env in safe_registry:
-        #     if "MA" in env:
+        #     if "Building" in env:
         #         safe_registry_custom.append(env)
         # print(safe_registry_custom)
         assert id in safe_registry, f'Environment {id} is not registered in safety-gymnasium.'
