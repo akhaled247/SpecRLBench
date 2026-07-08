@@ -114,7 +114,7 @@ env_names = [
     "SafetyPointBuildingGoal0-v0",
 ]
 
-env_name = 'PointLTLMASAR5Debug-v0'
+env_name = 'PointLTLMASAR2Debug-v0'
 steps = 750
 
 print(f"="*40)

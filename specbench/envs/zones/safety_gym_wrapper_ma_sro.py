@@ -61,6 +61,9 @@ class SafetyGymWrapperMASAR(gymnasium.Wrapper):
         # print(f"DEBUG: self.observation_space = {self.observation_space}")
         self.last_dist = None
 
+    _reward_inside_building = 0.05
+    _reward_find_casualty = 0.5
+    _reward_collision = -1.0
     def step(self, action: ActType):
         obs, reward, cost, terminated, truncated, info = super().step(action)
         # print(f"DEBUG: info = {info}")
@@ -101,7 +104,7 @@ class SafetyGymWrapperMASAR(gymnasium.Wrapper):
                 if info[a]['cost_ltl_walls'] > 0:
                     print(f"DEBUG: wall collision detected for {a}!")
                 if info[a]['cost_collision'] > 0:
-                    reward[a] -= 1.0
+                    reward[a] += self._reward_collision
                     # print(f"DEBUG: agent collision detected for {a}!")
             
             # if any(terminated.values()):
@@ -129,23 +132,23 @@ class SafetyGymWrapperMASAR(gymnasium.Wrapper):
             if f'cost_buildings_terracotta_{i}' in info['propositions']:
                 # print('Agent '+str(i)+' in building')
                 # terminated[a] = True
-                reward[f"agent_{i}"] += 0.05
+                reward[f"agent_{i}"] += self._reward_inside_building
             else:
                 obs[a][f'entrapped_casualtys_lidar_{i}'] = np.zeros(obs[a][f'entrapped_casualtys_lidar_{i}'].size)
                 pass
             if f'cost_casualtys_surface_{i}' in info['propositions']:
                 # print('Agent '+str(i)+' found entrapped casualty')
                 # terminated[a] = True
-                reward[f"agent_{i}"] += 0.5
+                reward[f"agent_{i}"] += self._reward_find_casualty
             if f'cost_casualtys_entrapped_{i}' in info['propositions']:
                 # print('Agent '+str(i)+' found entrapped casualty')
                 # terminated[a] = True
-                reward[f"agent_{i}"] += 1.0
+                reward[f"agent_{i}"] += (self._reward_find_casualty * 2.0)
             
             lidar_keys = [k for k in obs[a] if "lidar" in k]
             arr = np.stack([obs[a][k] for k in lidar_keys])
-            if i == 0: print(lidar_keys)
-            if i == 0: print(arr)
+            # if i == 0: print(lidar_keys)
+            # if i == 0: print(arr)
             # if i == 0: print(obs[a])
 
         # print(obs["agent_0"]['surface_casualtys_lidar_0'])

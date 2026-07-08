@@ -390,7 +390,8 @@ def __combine_multi(tasks, agents, max_episode_steps):
 multi_goal_tasks = {
     'LTL0MA3': {'agent_num': 3},
     'LTL0MA5': {'agent_num': 5},
-    'LTLMASAR5': {'agent_num': 5}
+    'LTLMASAR5': {'agent_num': 5},
+    'LTLMASAR2': {'agent_num': 2},
 }
 robots = ['Point']
 __combine_multi(multi_goal_tasks, robots, max_episode_steps=1000)
