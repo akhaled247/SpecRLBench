@@ -91,32 +91,86 @@ class SequenceWrapper(gymnasium.Wrapper):
             'propositions': info['propositions'],
         }
         
-    def pre_process_obs(self,
+    def pre_process_obs(self, reach, avoid):
+            if "SAR" in self.env.spec.id:
+                self.pre_process_obs_sar(reach, avoid)
+            if "PointLtlSafety" in self.env.spec.id:
+                obs = self.pre_process_obs_zones(reach, avoid)
+            elif "LetterSafetyEnv" in self.env.spec.id:
+                obs = self.pre_process_obs_letter(reach, avoid)
+            return obs
+    
+    def pre_process_obs_sar(self,
                         reach: frozenset[FrozenAssignment], 
                         avoid: frozenset[FrozenAssignment]) -> np.ndarray:
         """
-        pre-process the observation
+        observation reduction
         """
-        original_obs = self.task.original_obs
-        # print(f"original_obs = {original_obs}")
-        
-        reach_zones = [r.to_string()[0]+"_zones_lidar" for r in list(reach)]
-        avoid_zones = [a.to_string()[0]+"_zones_lidar" for a in list(avoid)]
-        
-        agent_obs_keys = ["accelerometer", "velocimeter", "gyro", "magnetometer", "wall_sensor"]        
-        agent_obs = np.concatenate([original_obs[key].flatten() if original_obs[key].ndim > 1 else original_obs[key] for key in agent_obs_keys])
-        lidar_dim = 16
-        
-        reach_obs = np.vstack([original_obs[color] for color in reach_zones]) # len(reach_zones) x lidar_dim
+        original_obs = self.env.unwrapped.task.original_obs['agent_0']
+        lidar_dim = self.task.lidar_conf.num_bins
+        agent_obs = np.concatenate([original_obs[key] for key in self.agent_obs_keys])
+
+        reach_zones = [r.to_string().split('_')[0]+"_casualtys_lidar" for r in list(reach)]
+        avoid_zones = [a.to_string().split('_')[0]+"_casualtys_lidar" for a in list(avoid)]
+
+        reach_obs = np.vstack([original_obs[category] for category in reach_zones])
         reach_obs = np.max(reach_obs, axis=0) # lidar_dim
         if len(avoid_zones):
-            avoid_obs = np.vstack([original_obs[color] for color in avoid_zones]) # len(avoid_zones) x lidar_dim
+            avoid_obs = np.vstack([original_obs[category] for category in avoid_zones])
             avoid_obs = np.max(avoid_obs, axis=0) # lidar_dim
         else:
             avoid_obs = np.zeros(lidar_dim)
             
         assert agent_obs.shape == reach_obs.shape == avoid_obs.shape == (lidar_dim,)
         return np.concatenate([agent_obs, reach_obs, avoid_obs])
+    
+    def pre_process_obs_zones(self,
+                        reach: frozenset[FrozenAssignment], 
+                        avoid: frozenset[FrozenAssignment]) -> np.ndarray:
+        """
+        observation reduction
+        """
+        original_obs = self.task.original_obs
+        lidar_dim = self.task.lidar_conf.num_bins
+        agent_obs = np.concatenate([original_obs[key] for key in self.agent_obs_keys])
+
+        reach_zones = [r.to_string()[0] + "_zones_lidar" for r in list(reach)]
+        avoid_zones = [a.to_string()[0] + "_zones_lidar" for a in list(avoid) if a.to_string()]
+        
+        reach_obs = np.vstack([original_obs[color] for color in reach_zones])
+        reach_obs = np.max(reach_obs, axis=0) # lidar_dim
+        if len(avoid_zones):
+            avoid_obs = np.vstack([original_obs[color] for color in avoid_zones])
+            avoid_obs = np.max(avoid_obs, axis=0) # lidar_dim
+        else:
+            avoid_obs = np.zeros(lidar_dim)
+            
+        assert agent_obs.shape == reach_obs.shape == avoid_obs.shape == (lidar_dim,)
+        return np.concatenate([agent_obs, reach_obs, avoid_obs])
+
+    def pre_process_obs_letter(self,
+                        reach: frozenset[FrozenAssignment], 
+                        avoid: frozenset[FrozenAssignment]) -> np.ndarray:
+        """
+        observation reduction
+        """
+        obs = self.env.original_obs
+        new_obs = np.zeros((obs.shape[0], obs.shape[1]), dtype=obs.dtype)
+        letter_to_index = {letter: i for i, letter in enumerate(self.region_order)}
+        
+        reach_indices = [letter_to_index[r.to_string()[0]] for r in list(reach)]
+        avoid_indices = [letter_to_index[a.to_string()[0]] for a in list(avoid)]
+        
+        reach_mask = np.any(obs[:, :, reach_indices] > 0, axis=2)
+        avoid_mask = np.any(obs[:, :, avoid_indices] > 0, axis=2)
+        agent_mask = obs[:, :, -1] > 0
+        
+        new_obs = np.zeros(obs.shape[:2], dtype=np.float32)
+            # specific values do not matter as long as they are distinct
+        new_obs[avoid_mask] = 0.5
+        new_obs[reach_mask] = 1.0
+        new_obs[agent_mask] = 0.2
+        return new_obs[..., None]
 
 
 class SequenceSafetyWrapper(gymnasium.Wrapper):
