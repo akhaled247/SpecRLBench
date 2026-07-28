@@ -100,30 +100,30 @@ class SequenceWrapper(gymnasium.Wrapper):
             obs = self.pre_process_obs_letter(reach, avoid)
         return obs
     
-    def pre_process_obs_sar(self,
-                        reach: frozenset[FrozenAssignment], 
-                        avoid: frozenset[FrozenAssignment]) -> np.ndarray:
-        """
-        observation reduction
-        """
-        original_obs = self.env.unwrapped.task.original_obs['agent_0']
-        lidar_dim = self.task.lidar_conf.num_bins
-        agent_obs = np.concatenate([original_obs[key] for key in self.agent_obs_keys])
+    def casualty_lidar_key(self, prop: str) -> str:
+      category, idx = prop.rsplit("_", 1)
+      return f"{category}_casualtys_lidar_{idx}"
+    def lidar_for_assignments(self, original_obs, assignments, lidar_dim):
+        keys = []
+        for a in assignments:
+            for prop in a.to_string():  # list, e.g. ["surface_0"]
+                keys.append(self.casualty_lidar_key(prop))
+        if not keys:
+            return np.zeros(lidar_dim, dtype=np.float64)
+        return np.max(np.vstack([original_obs[k] for k in keys]), axis=0)
+    def pre_process_obs_sar(self, reach, avoid):
+        original_obs = self.sar_agent_obs(0)
+        lidar_dim = self.sar_task().lidar_conf.num_bins
+        agent_obs = np.concatenate([
+            original_obs[k].flatten() if np.ndim(original_obs[k]) > 1 else original_obs[k]
+            for k in self.agent_obs_keys
+        ])
+        reach_obs = self.lidar_for_assignments(original_obs, reach, lidar_dim)
+        avoid_obs = self.lidar_for_assignments(original_obs, avoid, lidar_dim)
+        obs = np.concatenate([agent_obs, reach_obs, avoid_obs]).astype(np.float32)
+        assert obs.shape == self.observation_space["features"].shape
+        return obs
 
-        reach_zones = [r.to_string().split('_')[0]+"_casualtys_lidar" for r in list(reach)]
-        avoid_zones = [a.to_string().split('_')[0]+"_casualtys_lidar" for a in list(avoid)]
-
-        reach_obs = np.vstack([original_obs[category] for category in reach_zones])
-        reach_obs = np.max(reach_obs, axis=0) # lidar_dim
-        if len(avoid_zones):
-            avoid_obs = np.vstack([original_obs[category] for category in avoid_zones])
-            avoid_obs = np.max(avoid_obs, axis=0) # lidar_dim
-        else:
-            avoid_obs = np.zeros(lidar_dim)
-            
-        assert agent_obs.shape == reach_obs.shape == avoid_obs.shape == (lidar_dim,)
-        return np.concatenate([agent_obs, reach_obs, avoid_obs])
-    
     def pre_process_obs_zones(self,
                         reach: frozenset[FrozenAssignment], 
                         avoid: frozenset[FrozenAssignment]) -> np.ndarray:
