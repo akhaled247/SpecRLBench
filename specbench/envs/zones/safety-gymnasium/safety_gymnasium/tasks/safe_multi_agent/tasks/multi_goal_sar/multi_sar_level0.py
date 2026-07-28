@@ -127,20 +127,22 @@ class MultiGoalSARLevel0(BaseTask):
         return self.agent.dist_xy(agent_idx, casualty_pos)
 
     def _dist_to_casualtys(self, agent_idx: int) -> list[float]:
+        all_casualtys_dist = []
         if hasattr(self, 'surface_casualtys'):
             casualty_poses = (self.surface_casualtys.pos[i] for i in range(self.casualty_num))
-            return [self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses]
-        elif hasattr(self, 'entrapped_casualtys'):
+            all_casualtys_dist.extend([self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses])
+        if hasattr(self, 'entrapped_casualtys'):
             casualty_poses = (self.entrapped_casualtys.pos[i] for i in range(self.casualty_num))
-            return [self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses]
-        return []
+            all_casualtys_dist.extend([self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses])
+        return all_casualtys_dist
 
     def _casualtys_rescued(self) -> list[float]:
-            if hasattr(self, 'surface_casualtys'):
-                return self.surface_casualtys.rescued
-            elif hasattr(self, 'entrapped_casualtys'):
-                return self.entrapped_casualtys.rescued
-            return []            
+        all_casualtys_rescued = []
+        if hasattr(self, 'surface_casualtys'):
+            all_casualtys_rescued.extend(self.surface_casualtys.rescued)
+        if hasattr(self, 'entrapped_casualtys'):
+            all_casualtys_rescued.extend(self.entrapped_casualtys.rescued)
+        return all_casualtys_rescued   
 
     def build_observation_space(self) -> gymnasium.spaces.Dict:
         super().build_observation_space()
@@ -185,8 +187,8 @@ class MultiGoalSARLevel0(BaseTask):
             min_casualty_rescued = self._casualtys_rescued()[dists.index(min_dist)]
             if min_dist <= touch_threshold and not min_casualty_rescued:
                 reward += (self.reward_goal
-                           / (self.agent_num * self.surface_casualties_enabled
-                              + self.agent_num * self.entrapped_casualties_enabled))
+                           / (self.agent_num * self.surface_casualties_per_agent
+                              + self.agent_num * self.entrapped_casualties_per_agent))
             self.last_dist_casualty[i] = min_dist
 
             rewards[a] = reward

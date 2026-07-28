@@ -1,6 +1,6 @@
 """Canonical zone/LTL env factory for SpecRLBench (and RISE-Training via import).
 
-Handles Point|Car|Ant, MA, SAR, WC, AC suffixes. Training-only ``sb3`` flattening is
+Handles Point|Car|Ant, MA, SAR, WC, AC suffixes. Training-only ``flat`` flattening is
 accepted here so all consumers share one construction path.
 """
 
@@ -17,7 +17,7 @@ def _strip_cost_suffix(env_name: str) -> str:
     return env_name
 
 
-def make_zone_env(env_name: str, render_mode=None, sb3: bool = False):
+def make_zone_env(env_name: str, render_mode=None, flat: bool = False):
     """Construct zone/LTL env with the correct SafetyGymWrapper stack."""
     if env_name.startswith("Letter"):
         return gym.make(env_name, disable_env_checker=True, render_mode=render_mode)
@@ -36,8 +36,8 @@ def make_zone_env(env_name: str, render_mode=None, sb3: bool = False):
         )
         if "SAR" in env_name:
             if "AC" in env_name or "WC" in env_name:
-                return SafetyGymWrapperMASARWC(env, sb3=sb3)
-            return SafetyGymWrapperMASAR(env, sb3=sb3)
+                return SafetyGymWrapperMASARWC(env, flat=flat)
+            return SafetyGymWrapperMASAR(env, flat=flat)
         if "MA" in env_name:
             return SafetyGymWrapperMA(env)
         return SafetyGymWrapper(env)

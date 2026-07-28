@@ -4,7 +4,7 @@ from specbench.envs.zones.safety_gym_wrapper_sar import SafetyGymWrapperMASAR
 class SafetyGymWrapperMASARWC(SafetyGymWrapperMASAR):
     """Wall-cost (WC) SAR wrapper: terminate + ``info['cost']`` on ``cost_walls``.
 
-    Parent ``SafetyGymWrapperMASAR`` with ``sb3=True`` already collapses
+    Parent ``SafetyGymWrapperMASAR`` with ``flat=True`` already collapses
     ``terminated`` to a bool. Must set that bool (not ``terminated[agent]``).
     """
 

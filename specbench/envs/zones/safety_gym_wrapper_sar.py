@@ -1,5 +1,6 @@
 from typing import Any
 
+from specbench.utils.ltl.logic.assignment import Assignment
 import gymnasium
 import numpy as np
 from gymnasium import spaces
@@ -15,12 +16,12 @@ from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
 class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
     """SAR wrapper: extends MA setup; overrides step/reset for rescue propositions."""
 
-    sb3 = False
+    flat = False
     action_dim = 2
 
-    def __init__(self, env: Any, wall_sensor=True, sb3=False):
+    def __init__(self, env: Any, wall_sensor=True, flat=False):
         super().__init__(env, wall_sensor=wall_sensor)
-        self.sb3 = sb3
+        self.flat = flat
         self.prev_casualty_visible = False
         self.prev_entered_building = False
 
@@ -29,14 +30,17 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         obs_space = env.observation_space
         if callable(obs_space):
             obs_space = obs_space(None)
-        for key in obs_space.spaces.keys():
-            if "zones" in key.split('_'):
-                color = key.split('_')[0]
-                self.colors.add(color)
-                for i in range(self.num_agents * 2):
-                    self.atomic_propositions.add(color + '_' + str(i))
+        obs_keys = obs_space.spaces.keys()
+        self.categories = set()
+        for key in obs_keys:
+            if "casualtys" in key.split('_'):
+                # print(f"<safety_gym_wrapper_sar> {key.split('_')}")
+                category = key.split('_')[0]
+                self.categories.add(category)
+                for i in range(self.num_agents):
+                    self.atomic_propositions.add(category + '_' + str(i))
 
-        if self.sb3:
+        if self.flat:
             act_space = env.action_space
             if callable(act_space):
                 act_space = Box(low=-1.0, high=1.0, shape=(self.num_agents * self.action_dim,))
@@ -46,7 +50,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
                 raise TypeError(f"Expected Box action space for SB3, got {type(act_space)}")
 
     def step(self, action: ActType):
-        if self.sb3:
+        if self.flat:
             action = self.dictify_action(action)
         obs, reward, cost, terminated, truncated, info = gymnasium.Wrapper.step(self, action)
 
@@ -60,10 +64,12 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         info['casualty_visible'] = False
         for i, a in enumerate(self.env.unwrapped.possible_agents):
             agent_info: dict = info[a]
-            for k, v in agent_info.items():
-                if isinstance(v, (int, float)) and v != 0 and "cost_sum" not in k:
-                    info['propositions'].append(f"{k}_{i}")
-
+            # print(f'<safety_gym_wrapper_sar> agent_info={agent_info}')
+            # print(f'<safety_gym_wrapper_sar> categories={self.categories}')
+            active_props = [c + '_' + str(i) for c in self.categories if agent_info[f'cost_casualtys_{c}'] > 0]
+            info['propositions'].extend(active_props)
+            # if len(info['propositions'])>0: 
+            #   print(f"<safety_gym_wrapper_sar> info['propositions']={info['propositions']}")
             task = self.env.unwrapped.task
             inside = agent_inside_building_idx(task, i) is not None
             entered = bool(getattr(task, '_buildings_entered', set()))
@@ -85,7 +91,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
 
         mission_complete = all(self.env.unwrapped.task.goal_achieved)
 
-        if self.sb3:
+        if self.flat:
             obs = self.flatten_obs(obs)
             reward = float(np.mean(list(reward.values())))
             truncated = any(list(truncated.values()))
@@ -111,7 +117,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         for i, a in enumerate(self.env.unwrapped.possible_agents):
             obs[a][f'wall_sensor_{i}'] = np.array([0, 0, 0, 0])
         self.env.unwrapped.task.original_obs = obs
-        if self.sb3:
+        if self.flat:
             obs = self.flatten_obs(obs)
         return obs, info
 
@@ -127,3 +133,22 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
             f"agent_{i}": action[i * self.action_dim:(i + 1) * self.action_dim]
             for i in range(self.num_agents)
         }
+
+    def get_possible_assignments(self) -> list[Assignment]:
+            assignments = []
+            agent_props = {}
+            for prop in self.atomic_propositions:
+                agent_idx = prop[-1]
+                agent_props.setdefault(agent_idx, set()).add(prop)
+            per_agent_assignments = []
+            for props in agent_props.values():
+                per_agent_assignments.append(Assignment.zero_or_one_propositions(props))
+            import itertools
+            for combo in itertools.product(*per_agent_assignments):
+                merged = Assignment()
+                for a in combo:
+                    merged.update(a)
+                assignments.append(merged)
+            assert len(assignments) == (len(self.categories) + 1) ** self.num_agents, \
+                f"Expected {(len(self.categories) + 1) ** self.num_agents} assignments, got {len(assignments)}"
+            return assignments
