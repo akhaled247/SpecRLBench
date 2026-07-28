@@ -92,13 +92,13 @@ class SequenceWrapper(gymnasium.Wrapper):
         }
         
     def pre_process_obs(self, reach, avoid):
-            if "SAR" in self.env.spec.id:
-                self.pre_process_obs_sar(reach, avoid)
-            if "PointLtlSafety" in self.env.spec.id:
-                obs = self.pre_process_obs_zones(reach, avoid)
-            elif "LetterSafetyEnv" in self.env.spec.id:
-                obs = self.pre_process_obs_letter(reach, avoid)
-            return obs
+        if "SAR" in self.env.spec.id:
+            obs = self.pre_process_obs_sar(reach, avoid)
+        if "PointLtlSafety" in self.env.spec.id:
+            obs = self.pre_process_obs_zones(reach, avoid)
+        elif "LetterSafetyEnv" in self.env.spec.id:
+            obs = self.pre_process_obs_letter(reach, avoid)
+        return obs
     
     def pre_process_obs_sar(self,
                         reach: frozenset[FrozenAssignment], 
