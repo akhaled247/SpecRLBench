@@ -18,10 +18,10 @@ from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import LtlWalls
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.buildings import Buildings
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms.casualtys import Casualtys
 from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import border_placements
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level1 import MultiGoalSARLevel1
+from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar.single_sar_level1 import SingleGoalSARLevel1
 
 
-class MultiGoalSARLevel2(MultiGoalSARLevel1):
+class SingleGoalSARLevel2(SingleGoalSARLevel1):
     """Multi-agent zone navigation with optional ring-placed interior walls."""
 
     wall_count = 10
@@ -33,7 +33,7 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
         super().__init__(config=config)
         # Omitted building_num → one building per agent. Explicit 0 → no buildings.
         if config.get('building_num') is None:
-            self.building_num = self.agent_num
+            self.building_num = self.agent_num * self.entrapped_casualties_per_agent
 
         geoms = []
         if self.building_num > 0:

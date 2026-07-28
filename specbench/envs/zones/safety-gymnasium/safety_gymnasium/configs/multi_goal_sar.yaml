@@ -12,7 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # ==============================================================================
-# Shared recipe for MultiGoalSARLevel* and CustomizedSAR.
+# Shared recipe for SingleGoalSARLevel* and CustomizedSAR.
 
 # Stock level identity — documented parity with Python classes; not applied at runtime.
 levels:

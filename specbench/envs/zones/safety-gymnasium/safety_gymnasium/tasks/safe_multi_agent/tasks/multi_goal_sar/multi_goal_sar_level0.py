@@ -14,14 +14,14 @@
 # ==============================================================================
 """Multi Goal SAR level 3: walls + buildings with surface and entrapped casualties."""
 
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level2 import (
-    MultiGoalSARLevel2,
+from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar.single_sar_level2 import (
+    SingleGoalSARLevel2,
 )
 
 
-class MultiGoalSARLevel3(MultiGoalSARLevel2):
+class MultiGoalSARLevel0(SingleGoalSARLevel2):
     """L2 setup with both surface and entrapped casualties enabled."""
 
-    wall_count = 10
+    wall_count = 0
     surface_casualties_per_agent = 1
     entrapped_casualties_per_agent = 1

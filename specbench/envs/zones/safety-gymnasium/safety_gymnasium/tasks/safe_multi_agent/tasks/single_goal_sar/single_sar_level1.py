@@ -18,10 +18,10 @@ import numpy as np
 
 from safety_gymnasium.tasks.safe_multi_agent.assets.geoms import Walls
 from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import ring_placements, size_randomization
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level0 import MultiGoalSARLevel0
+from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar.single_sar_level0 import SingleGoalSARLevel0
 
 
-class MultiGoalSARLevel1(MultiGoalSARLevel0):
+class SingleGoalSARLevel1(SingleGoalSARLevel0):
     """Multi-agent zone navigation with optional ring-placed interior walls."""
 
     wall_count = 10

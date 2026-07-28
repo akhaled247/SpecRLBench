@@ -21,22 +21,23 @@ import numpy as np
 
 
 def get_task_class_name(task_id):
-    """Help to translate task_id into task_class_name."""
-    if 'CustomizedSAR' in task_id:
-        return 'CustomizedSAR'
-    if 'LTLMASAR' in task_id:
-        return "MultiGoalSAR"
-    elif 'LTL' in task_id:
+    """Help to translate task_id into task_class_name."""  
+    if 'LTL' in task_id:
         if "Customized" in task_id:
             return "CustomizedLTL"
         task_num = re.search(r'LTL(\d)', task_id).group(1)
         class_name = f'LTL{task_num}'
         if 'MA' in task_id:
-            task_num = re.search(r'LTL(\d)', task_id).group(1)
+            task_num = re.search(r'L(\d)', task_id).group(1)
             class_name = f'MultiGoal{task_num}'
-            if 'SAR' in task_id:
-                task_num = re.search(r'LTL(\d)', task_id).group(1)
-                class_name = f'MultiGoalSAR{task_num}'
+        if 'SAR' in task_id:
+            task_num = re.search(r'L(\d)', task_id).group(1)
+            class_name = f'MultiGoalSAR{task_num}'
+    elif 'SAR' in task_id:
+        if 'Customized' in task_id:
+                return 'CustomizedSAR'
+        task_num = re.search(r'L(\d)', task_id).group(1)
+        class_name = f'SingleGoalSAR{task_num}'
     else:
         class_name = ''.join(re.findall('[A-Z][^A-Z]*', task_id.split('-')[0])[2:])
     return class_name[:-1] + 'Level' + class_name[-1]

@@ -40,7 +40,7 @@ from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
 )
 
 
-class MultiGoalSARLevel0(BaseTask):
+class SingleGoalSARLevel0(BaseTask):
     """Multi-agent zone navigation with optional ring-placed interior walls."""
 
     # Level identity (stock L0). Shared recipe lives in configs/multi_goal_sar.yaml.
@@ -129,11 +129,14 @@ class MultiGoalSARLevel0(BaseTask):
     def _dist_to_casualtys(self, agent_idx: int) -> list[float]:
         all_casualtys_dist = []
         if hasattr(self, 'surface_casualtys'):
-            casualty_poses = (self.surface_casualtys.pos[i] for i in range(self.casualty_num))
+            casualty_poses = (self.surface_casualtys.pos[i] 
+                              for i in range(self.agent_num * self.surface_casualties_per_agent))
             all_casualtys_dist.extend([self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses])
         if hasattr(self, 'entrapped_casualtys'):
-            casualty_poses = (self.entrapped_casualtys.pos[i] for i in range(self.casualty_num))
+            casualty_poses = (self.entrapped_casualtys.pos[i] 
+                              for i in range(self.agent_num * self.entrapped_casualties_per_agent))
             all_casualtys_dist.extend([self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses])
+        # print(all_casualtys_dist)
         return all_casualtys_dist
 
     def _casualtys_rescued(self) -> list[float]:
@@ -142,6 +145,7 @@ class MultiGoalSARLevel0(BaseTask):
             all_casualtys_rescued.extend(self.surface_casualtys.rescued)
         if hasattr(self, 'entrapped_casualtys'):
             all_casualtys_rescued.extend(self.entrapped_casualtys.rescued)
+        # print(all_casualtys_rescued)
         return all_casualtys_rescued   
 
     def build_observation_space(self) -> gymnasium.spaces.Dict:
@@ -185,7 +189,10 @@ class MultiGoalSARLevel0(BaseTask):
                 continue
             min_dist = min(dists)
             min_casualty_rescued = self._casualtys_rescued()[dists.index(min_dist)]
+            # if min_dist <= touch_threshold: print('uh oh') 
+            # else: print(min_dist)
             if min_dist <= touch_threshold and not min_casualty_rescued:
+                # print('casualty found')
                 reward += (self.reward_goal
                            / (self.agent_num * self.surface_casualties_per_agent
                               + self.agent_num * self.entrapped_casualties_per_agent))

@@ -93,7 +93,7 @@ def __combine(tasks, agents, max_episode_steps):
             if MAKE_VISION_ENVIRONMENTS:
                 # Vision inputs
                 # print(f"DEBUG: task_name = {task_name}")
-                if "LTL" in task_name:
+                if "LTL" in task_name or "SAR" in task_name:
                     if '.' in task_name:
                         pre, post = task_name.split('.')
                         vision_env_name = f'{robot_name}{pre}Vision-{VERSION}.{post}'

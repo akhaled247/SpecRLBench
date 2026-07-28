@@ -65,9 +65,13 @@ from safety_gymnasium.tasks.safe_vision.race.race_level0 import RaceLevel0
 from safety_gymnasium.tasks.safe_vision.race.race_level1 import RaceLevel1
 from safety_gymnasium.tasks.safe_vision.race.race_level2 import RaceLevel2
 
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal.multi_goal_level0 import MultiGoalLevel0
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level0 import MultiGoalSARLevel0
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level1 import MultiGoalSARLevel1
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level2 import MultiGoalSARLevel2
-from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_level3 import MultiGoalSARLevel3
+from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar.single_sar_level0 import SingleGoalSARLevel0
+from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar.single_sar_level1 import SingleGoalSARLevel1
+from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar.single_sar_level2 import SingleGoalSARLevel2
+
+from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_goal_sar_level0 import MultiGoalSARLevel0
+from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_goal_sar_level1 import MultiGoalSARLevel1
+from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_goal_sar_level2 import MultiGoalSARLevel2
+
+
 from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar.multi_sar_customized import CustomizedSAR

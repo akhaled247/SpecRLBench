@@ -28,13 +28,13 @@ from specbench.envs.zones.zone_env import make_zone_env as make_env  # noqa: E40
 
 
 SAR_ENV_IDS = {
-    'PointLTL0MASAR1-v0': 'MultiGoalSARLevel0',
-    'PointLTL1MASAR1-v0': 'MultiGoalSARLevel1',
-    'PointLTL2MASAR1-v0': 'MultiGoalSARLevel2',
-    'PointLTL0MASAR2-v0': 'MultiGoalSARLevel0',
-    'PointLTL1MASAR2-v0': 'MultiGoalSARLevel1',
-    'PointLTL2MASAR2-v0': 'MultiGoalSARLevel2',
-    'PointLTL3MASAR2-v0': 'MultiGoalSARLevel3',
+    'PointLTL0MASAR1-v0': 'SingleGoalSARLevel0',
+    'PointLTL1MASAR1-v0': 'SingleGoalSARLevel1',
+    'PointLTL2MASAR1-v0': 'SingleGoalSARLevel2',
+    'PointLTL0MASAR2-v0': 'SingleGoalSARLevel0',
+    'PointLTL1MASAR2-v0': 'SingleGoalSARLevel1',
+    'PointLTL2MASAR2-v0': 'SingleGoalSARLevel2',
+    'PointLTL3MASAR2-v0': 'SingleGoalSARLevel3',
 }
 
 
@@ -114,7 +114,7 @@ def test_sar_flat_wrapper_flattens_obs_and_actions_for_multiinput_policy():
 
 
 @pytest.mark.parametrize('env_id', SAR_ENV_IDS)
-def test_all_sar_levels_keep_flat_reset_and_step_contract(env_id):
+def test_all_single_sar_levels_keep_flat_reset_and_step_contract(env_id):
     """Every public SAR level must support SB3 reset and one sampled step."""
     env = make_env(env_id, flat=True)
     try:
@@ -263,7 +263,7 @@ def test_entered_building_suppresses_shell_lidar_and_render():
     """Entered building shell stays sticky-hidden after exit; visited flag set."""
     from unittest.mock import patch
 
-    from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar import multi_sar_level0
+    from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar import single_sar_level0
 
     env = make_env('PointLTL2MASAR1-v0', flat=True)
     try:
@@ -274,7 +274,7 @@ def test_entered_building_suppresses_shell_lidar_and_render():
         shell_geom_id = task._obstacle_geom_id_for_instance(buildings, 0)
         assert shell_geom_id is not None
 
-        with patch.object(multi_sar_level0, 'agent_inside_building_idx', return_value=0):
+        with patch.object(single_sar_level0, 'agent_inside_building_idx', return_value=0):
             task._sync_entered_building_state()
             assert 0 in task._buildings_entered
             assert shell_geom_id in task._lidar_suppressed_geom_ids
@@ -300,7 +300,7 @@ def test_entered_building_suppresses_shell_lidar_and_render():
             )
 
         # Exit: shell stays hidden (sticky for rest of episode).
-        with patch.object(multi_sar_level0, 'agent_inside_building_idx', return_value=None):
+        with patch.object(single_sar_level0, 'agent_inside_building_idx', return_value=None):
             task._sync_entered_building_state()
             assert 0 in task._buildings_entered
             assert shell_geom_id in task._lidar_suppressed_geom_ids
@@ -326,7 +326,7 @@ def test_wrapper_keeps_entrapped_lidar_when_building_sticky_entered():
     """Entrapped lidar is not force-zeroed once a building is sticky-entered."""
     from unittest.mock import patch
 
-    from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar import multi_sar_level0
+    from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar import single_sar_level0
 
     env = make_env('PointLTL2MASAR1-v0', flat=False)
     try:
@@ -335,12 +335,12 @@ def test_wrapper_keeps_entrapped_lidar_when_building_sticky_entered():
         bins = task.lidar_conf.num_bins
         sentinel = np.full(bins, 0.42, dtype=np.float64)
 
-        with patch.object(multi_sar_level0, 'agent_inside_building_idx', return_value=0):
+        with patch.object(single_sar_level0, 'agent_inside_building_idx', return_value=0):
             task._sync_entered_building_state()
             assert 0 in task._buildings_entered
 
         # Outside again, cost pulse gone — sticky entered must still unmask.
-        with patch.object(multi_sar_level0, 'agent_inside_building_idx', return_value=None):
+        with patch.object(single_sar_level0, 'agent_inside_building_idx', return_value=None):
             task._sync_entered_building_state()
             assert 0 in task._buildings_entered
 
