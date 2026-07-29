@@ -207,6 +207,22 @@ def all_casualties_rescued(task: BaseTask) -> bool:
             return False
     return found_any
 
+def all_entrapped_casualties_rescued(task: BaseTask) -> bool:
+    """Return True when every entrapped casualty (if present) is rescued."""
+    found_any = False
+    attr = 'entrapped_casualtys'
+    if not hasattr(task, attr):
+        # print('not has attr')
+        return False
+    geom = getattr(task, attr)
+    if geom.num <= 0:
+        # print('geom num <= 0')
+        return False
+    found_any = True
+    if not all(geom.rescued):
+        # print('not all geoms rescued')
+        return False
+    return found_any
 
 def mission_goal_achieved(task: BaseTask) -> tuple[bool, ...]:
     """Shared goal_achieved tuple: same team mission flag for each agent."""

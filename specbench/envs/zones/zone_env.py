@@ -28,6 +28,7 @@ def make_zone_env(env_name: str, render_mode=None, flat: bool = False):
         from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
         from specbench.envs.zones.safety_gym_wrapper_sar import SafetyGymWrapperMASAR
         from specbench.envs.zones.safety_gym_wrapper_sar_wc import SafetyGymWrapperMASARWC
+        from specbench.envs.zones.safety_gym_wrapper_sar_ltl import SafetyGymWrapperMASARLTL
         import safety_gymnasium
 
         base = _strip_cost_suffix(env_name)
@@ -35,6 +36,8 @@ def make_zone_env(env_name: str, render_mode=None, flat: bool = False):
             base, disable_env_checker=True, render_mode=render_mode
         )
         if "SAR" in env_name:
+            if "LTL" in env_name:
+                return SafetyGymWrapperMASARLTL(env, flat=flat)
             if "AC" in env_name or "WC" in env_name:
                 return SafetyGymWrapperMASARWC(env, flat=flat)
             return SafetyGymWrapperMASAR(env, flat=flat)
