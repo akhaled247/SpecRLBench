@@ -631,7 +631,7 @@ class LDBAWrapperFixedSequence(gymnasium.Wrapper):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[
         WrapperObsType, dict[str, Any]]:
         obs, info = super().reset(seed=seed, options=options)
-        # self.goal_seq = self.sample_sequence()
+        # self.goal_seq = self.unwrapped.sample_sequence()
         self.num_reached = 0
         # self.stay = ''
         # print(obs)

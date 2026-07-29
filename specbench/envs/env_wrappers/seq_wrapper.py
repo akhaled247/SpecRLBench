@@ -21,7 +21,7 @@ class SequenceWrapper(gymnasium.Wrapper):
             # 16 dim for agent status, 16 dim for reach, and 16 dim for avoid
             'features': spaces.Box(-np.inf, np.inf, (48,), dtype=np.float32)
         })
-        self.sample_sequence = sample_sequence
+        self.unwrapped.sample_sequence = sample_sequence
         self.goal_seq = None
         self.num_reached = 0
         self.propositions = set(env.get_propositions())
@@ -72,7 +72,7 @@ class SequenceWrapper(gymnasium.Wrapper):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[
         WrapperObsType, dict[str, Any]]:
         obs, info = super().reset(seed=seed, options=options)
-        self.goal_seq = self.sample_sequence()
+        self.goal_seq = self.unwrapped.sample_sequence()
         self.num_reached = 0
         
         reach, avoid = self.goal_seq[self.num_reached]
@@ -215,7 +215,7 @@ class SequenceSafetyWrapper(gymnasium.Wrapper):
                 'features': spaces.Box(0, 1, (obs_dim, obs_dim, 1), dtype=np.float32)
             })
 
-        self.sample_sequence = sample_sequence
+        self.unwrapped.sample_sequence = sample_sequence
         self.goal_seq = None
         self.reward_scale = 0.0 # 1.0 for dense rewards
         self.cost_scale = 1.0
@@ -261,7 +261,7 @@ class SequenceSafetyWrapper(gymnasium.Wrapper):
             # info['success'] = True if not self.violated else False # for visualization
             # # hard_case
             # reward += 1.0; cost = 0.0; terminated = True
-            self.goal_seq = self.sample_sequence(assignment)
+            self.goal_seq = self.unwrapped.sample_sequence(assignment)
             
             reward = 1.0; cost = 0.0; terminated = False
             # reward = 1.0; cost = 0.0; terminated = True # letter env
@@ -321,7 +321,7 @@ class SequenceSafetyWrapper(gymnasium.Wrapper):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[
         WrapperObsType, dict[str, Any]]:
         obs, info = super().reset(seed=seed, options=options)
-        self.goal_seq = self.sample_sequence()
+        self.goal_seq = self.unwrapped.sample_sequence()
         self.num_reached = 0
         # self.violated = False
         
