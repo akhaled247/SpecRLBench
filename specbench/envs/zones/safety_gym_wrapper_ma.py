@@ -27,7 +27,7 @@ class SafetyGymWrapperMA(gymnasium.Wrapper):
         obs_keys = obs_space.spaces.keys()
         self.colors = set()
         self.atomic_propositions = set()
-        self.num_agents = env.num_agents
+        self.num_agents = env.unwrapped.num_agents
         for key in obs_keys:
             if "zones" in key.split('_'):
                 color = key.split('_')[0]
