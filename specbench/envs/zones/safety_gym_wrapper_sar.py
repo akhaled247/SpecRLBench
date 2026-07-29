@@ -8,6 +8,11 @@ from gymnasium.core import ActType, WrapperObsType
 from gymnasium.spaces import Box
 
 from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
+from specbench.envs.zones.sar_propositions import (
+    TEAM_PROPS,
+    should_expose_team_props,
+    team_active_props,
+)
 from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
     agent_inside_building_idx,
 )
@@ -39,6 +44,10 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
                 self.categories.add(category)
                 for i in range(self.num_agents):
                     self.atomic_propositions.add(category + '_' + str(i))
+
+        task = env.unwrapped.task
+        if should_expose_team_props(task):
+            self.atomic_propositions.update(TEAM_PROPS)
 
         if self.flat:
             act_space = env.action_space
@@ -89,6 +98,10 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
                 info['casualty_visible'] = True
                 self.prev_casualty_visible = True
 
+        task = self.env.unwrapped.task
+        if should_expose_team_props(task):
+            info['propositions'].extend(team_active_props(task))
+
         mission_complete = all(self.env.unwrapped.task.goal_achieved)
 
         if self.flat:
@@ -136,19 +149,38 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
 
     def get_possible_assignments(self) -> list[Assignment]:
             assignments = []
-            agent_props = {}
+            agent_props: dict[int, set[str]] = {}
+            team_props: set[str] = set()
             for prop in self.atomic_propositions:
-                agent_idx = prop[-1]
+                if prop in TEAM_PROPS:
+                    team_props.add(prop)
+                    continue
+                agent_idx = int(prop.rsplit('_', 1)[1])
                 agent_props.setdefault(agent_idx, set()).add(prop)
             per_agent_assignments = []
-            for props in agent_props.values():
+            for agent_id in range(self.num_agents):
+                props = agent_props.get(agent_id, set())
                 per_agent_assignments.append(Assignment.zero_or_one_propositions(props))
+            team_choices = (
+                Assignment.zero_or_one_propositions(team_props)
+                if team_props else [Assignment()]
+            )
             import itertools
-            for combo in itertools.product(*per_agent_assignments):
+            for combo in itertools.product(*per_agent_assignments, team_choices):
                 merged = Assignment()
                 for a in combo:
                     merged.update(a)
                 assignments.append(merged)
-            assert len(assignments) == (len(self.categories) + 1) ** self.num_agents, \
-                f"Expected {(len(self.categories) + 1) ** self.num_agents} assignments, got {len(assignments)}"
+            per_agent_expected = (len(self.categories) + 1) ** self.num_agents
+            team_expected = (len(team_props) + 1) if team_props else 1
+            expected = per_agent_expected * team_expected
+            assert len(assignments) == expected, \
+                f"Expected {expected} assignments, got {len(assignments)}"
             return assignments
+
+    def get_propositions(self) -> list[str]:
+        props = sorted(self.atomic_propositions)
+        task = self.env.unwrapped.task
+        if should_expose_team_props(task):
+            props = sorted(set(props) | set(TEAM_PROPS))
+        return props

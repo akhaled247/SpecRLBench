@@ -28,13 +28,12 @@ from specbench.envs.zones.zone_env import make_zone_env as make_env  # noqa: E40
 
 
 SAR_ENV_IDS = {
-    'PointLTL0MASAR1-v0': 'SingleGoalSARLevel0',
-    'PointLTL1MASAR1-v0': 'SingleGoalSARLevel1',
-    'PointLTL2MASAR1-v0': 'SingleGoalSARLevel2',
-    'PointLTL0MASAR2-v0': 'SingleGoalSARLevel0',
-    'PointLTL1MASAR2-v0': 'SingleGoalSARLevel1',
-    'PointLTL2MASAR2-v0': 'SingleGoalSARLevel2',
-    'PointLTL3MASAR2-v0': 'SingleGoalSARLevel3',
+    'PointLTL0MASAR1-v0': 'MultiGoalSARLevel0',
+    'PointLTL1MASAR1-v0': 'MultiGoalSARLevel1',
+    'PointLTL2MASAR1-v0': 'MultiGoalSARLevel2',
+    'PointLTL0MASAR2-v0': 'MultiGoalSARLevel0',
+    'PointLTL1MASAR2-v0': 'MultiGoalSARLevel1',
+    'PointLTL2MASAR2-v0': 'MultiGoalSARLevel2',
 }
 
 
@@ -233,7 +232,7 @@ def test_customized_sar_building_num_zero_is_open_field():
         'entrapped_casualties_per_agent': 1,
     }
     register_helper(env_config=env_config)
-    env = safety_gymnasium.make(env_id, flat=True)
+    env = make_env(env_id, flat=True)
     try:
         env.reset(seed=0)
         task = env.unwrapped.task
@@ -263,7 +262,7 @@ def test_entered_building_suppresses_shell_lidar_and_render():
     """Entered building shell stays sticky-hidden after exit; visited flag set."""
     from unittest.mock import patch
 
-    from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar import single_sar_level0
+    from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar import single_sar_level0
 
     env = make_env('PointLTL2MASAR1-v0', flat=True)
     try:
@@ -294,9 +293,11 @@ def test_entered_building_suppresses_shell_lidar_and_render():
                     obs['terracotta_buildings_lidar_0'],
                     np.zeros(task.lidar_conf.num_bins),
                 )
+            expected_visited = np.zeros(buildings.num, dtype=np.float64)
+            expected_visited[0] = 1.0
             np.testing.assert_array_equal(
                 obs['terracotta_buildings_visited'],
-                np.array([1.0], dtype=np.float64),
+                expected_visited,
             )
 
         # Exit: shell stays hidden (sticky for rest of episode).
@@ -314,9 +315,11 @@ def test_entered_building_suppresses_shell_lidar_and_render():
             ]
             expected = task._obs_lidar_pseudo_new(0, positions)
             np.testing.assert_array_equal(obs['terracotta_buildings_lidar_0'], expected)
+            expected_visited = np.zeros(buildings.num, dtype=np.float64)
+            expected_visited[0] = 1.0
             np.testing.assert_array_equal(
                 obs['terracotta_buildings_visited'],
-                np.array([1.0], dtype=np.float64),
+                expected_visited,
             )
     finally:
         env.close()
@@ -326,7 +329,7 @@ def test_wrapper_keeps_entrapped_lidar_when_building_sticky_entered():
     """Entrapped lidar is not force-zeroed once a building is sticky-entered."""
     from unittest.mock import patch
 
-    from safety_gymnasium.tasks.safe_multi_agent.tasks.multi_goal_sar import single_sar_level0
+    from safety_gymnasium.tasks.safe_multi_agent.tasks.single_goal_sar import single_sar_level0
 
     env = make_env('PointLTL2MASAR1-v0', flat=False)
     try:
@@ -356,6 +359,8 @@ def test_wrapper_keeps_entrapped_lidar_when_building_sticky_entered():
             fake_info = {
                 'agent_0': {
                     'cost_buildings_terracotta': 0.0,
+                    'cost_casualtys_surface': 0.0,
+                    'cost_casualtys_entrapped': 0.0,
                     'cost_sum': 0.0,
                 },
             }
@@ -382,5 +387,89 @@ def test_wrapper_keeps_entrapped_lidar_when_building_sticky_entered():
                 obs['agent_0']['entrapped_casualtys_lidar_0'],
                 sentinel,
             )
+    finally:
+        env.close()
+
+
+def test_pointltl_wc_defaults_to_wc_wrapper_not_ltl():
+    """GenZ path: PointLTL*WC must not auto-select MASARLTL (LTL substring collision)."""
+    from specbench.envs.zones.safety_gym_wrapper_sar_wc import SafetyGymWrapperMASARWC
+    from specbench.envs.zones.safety_gym_wrapper_sar_ltl import SafetyGymWrapperMASARLTL
+
+    env = make_env('PointLTL0MASAR1WC-v0', flat=True, sar_ltl_ordering=False)
+    try:
+        assert isinstance(env, SafetyGymWrapperMASARWC)
+        assert not isinstance(env, SafetyGymWrapperMASARLTL)
+    finally:
+        env.close()
+
+
+def test_sar_ltl_ordering_opt_in_uses_ltl_wrapper():
+    from specbench.envs.zones.safety_gym_wrapper_sar_ltl import SafetyGymWrapperMASARLTL
+
+    env = make_env('PointLTL0MASAR1WC-v0', flat=True, sar_ltl_ordering=True)
+    try:
+        assert isinstance(env, SafetyGymWrapperMASARLTL)
+    finally:
+        env.close()
+
+
+def test_sar_ltl_ordering_surface_rescue_before_entrapped_yields_cost():
+    """LTL ordering wrapper penalizes surface rescue before all entrapped are rescued."""
+    from unittest.mock import patch
+
+    env = make_env('PointLTL0MASAR1WC-v0', flat=True, sar_ltl_ordering=True)
+    try:
+        env.reset(seed=0)
+        fake_obs = env.observation_space.sample()
+        fake_reward = 0.0
+        fake_terminated = False
+        fake_truncated = False
+        fake_info = {
+            'agent_0': {
+                'cost_casualtys_surface': 1.0,
+                'cost_walls': 0.0,
+                'cost_collision': 0.0,
+            },
+        }
+
+        with patch.object(env.__class__.__bases__[0], 'step', return_value=(
+            fake_obs, fake_reward, fake_terminated, fake_truncated, fake_info,
+        )):
+            _obs, _reward, _terminated, _truncated, info = env.step(env.action_space.sample())
+
+        assert info['cost'] > 0
+    finally:
+        env.close()
+
+
+def test_team_props_on_l2_when_all_entrapped_rescued():
+    from specbench.envs.zones.sar_propositions import (
+        should_expose_team_props,
+        team_active_props,
+    )
+
+    env = make_env('PointLTL2MASAR2-v0', flat=True)
+    try:
+        env.reset(seed=11)
+        task = env.unwrapped.task
+        assert should_expose_team_props(task)
+        assert 'all_entrapped' not in team_active_props(task)
+
+        for i in range(task.entrapped_casualtys.num):
+            task.entrapped_casualtys.rescued[i] = True
+
+        assert 'all_entrapped' in team_active_props(task)
+        assert 'all_entrapped' in env.get_propositions()
+    finally:
+        env.close()
+
+
+def test_pointltl0masar2_registers_with_two_agents():
+    env = make_env('PointLTL0MASAR2-v0', flat=False)
+    try:
+        assert env.unwrapped.num_agents == 2
+        obs, _ = env.reset(seed=0)
+        assert set(obs) == {'agent_0', 'agent_1'}
     finally:
         env.close()

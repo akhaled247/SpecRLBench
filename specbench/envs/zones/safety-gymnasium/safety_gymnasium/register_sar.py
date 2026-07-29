@@ -48,23 +48,26 @@ def register_sar_envs(combine_multi: Callable) -> None:
 
     single_goal_sar_tasks = {
         'L0MASAR1': {'agent_num': 1},
-        'L0MASAR1': {'agent_num': 1},
-        'L0MASAR1': {'agent_num': 1},
     }
     combine_multi(single_goal_sar_tasks, sar_robots, max_episode_steps=1000)
 
     ma_single_goal_sar_tasks = {
         'L0MASAR2': {'agent_num': 2},
-        'L0MASAR2': {'agent_num': 2},
-        'L0MASAR2': {'agent_num': 2},
     }
     combine_multi(ma_single_goal_sar_tasks, sar_robots, max_episode_steps=2500)
 
     multi_goal_sar_tasks = {
-            'LTL0MASAR1': {'agent_num': 1},
-            'LTL1MASAR1': {'agent_num': 1},
-            'LTL2MASAR1': {'agent_num': 1},
-        }
+        'LTL0MASAR1': {'agent_num': 1},
+        'LTL1MASAR1': {'agent_num': 1},
+        'LTL2MASAR1': {'agent_num': 1},
+    }
     combine_multi(multi_goal_sar_tasks, sar_robots, max_episode_steps=2500)
+
+    ma_multi_goal_sar_tasks = {
+        'LTL0MASAR2': {'agent_num': 2},
+        'LTL1MASAR2': {'agent_num': 2},
+        'LTL2MASAR2': {'agent_num': 2},
+    }
+    combine_multi(ma_multi_goal_sar_tasks, sar_robots, max_episode_steps=2500)
 
     _register_sar_geoms()

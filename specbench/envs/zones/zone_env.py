@@ -17,7 +17,12 @@ def _strip_cost_suffix(env_name: str) -> str:
     return env_name
 
 
-def make_zone_env(env_name: str, render_mode=None, flat: bool = False):
+def make_zone_env(
+    env_name: str,
+    render_mode=None,
+    flat: bool = False,
+    sar_ltl_ordering: bool = False,
+):
     """Construct zone/LTL env with the correct SafetyGymWrapper stack."""
     if env_name.startswith("Letter"):
         return gym.make(env_name, disable_env_checker=True, render_mode=render_mode)
@@ -36,7 +41,7 @@ def make_zone_env(env_name: str, render_mode=None, flat: bool = False):
             base, disable_env_checker=True, render_mode=render_mode
         )
         if "SAR" in env_name:
-            if "LTL" in env_name:
+            if sar_ltl_ordering:
                 return SafetyGymWrapperMASARLTL(env, flat=flat)
             if "AC" in env_name or "WC" in env_name:
                 return SafetyGymWrapperMASARWC(env, flat=flat)
