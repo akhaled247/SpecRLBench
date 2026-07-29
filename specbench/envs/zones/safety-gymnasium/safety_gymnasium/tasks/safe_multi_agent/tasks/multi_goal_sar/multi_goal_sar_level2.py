@@ -24,6 +24,6 @@ class MultiGoalSARLevel2(MultiGoalSARLevel1):
 
     wall_count = 10
     building_num = 2
-    surface_casualties_per_agent = 3
+    surface_casualties_per_agent = 2
     entrapped_casualties_per_agent = 2
     
