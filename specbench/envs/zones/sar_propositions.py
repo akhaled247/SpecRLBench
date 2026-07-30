@@ -14,6 +14,77 @@ if TYPE_CHECKING:
 
 TEAM_PROPS = ("all_entrapped", "all_surface")
 
+# When multiple team props are simultaneously true, Büchi pruning allows only one.
+_TEAM_PROP_PRIORITY = ("all_entrapped", "all_surface")
+
+
+def normalize_team_props(active: list[str]) -> list[str]:
+    """Return ≤1 team prop (matches zero_or_one_propositions on TEAM_PROPS)."""
+    active_set = [p for p in active if p in TEAM_PROPS]
+    if len(active_set) <= 1:
+        return active_set
+    for prop in _TEAM_PROP_PRIORITY:
+        if prop in active_set:
+            return [prop]
+    return [active_set[0]]
+
+
+def pick_per_agent_prop(
+    categories: set[str],
+    agent_idx: int,
+    costs: dict[str, float],
+) -> str | None:
+    """Pick at most one casualty prop for an agent (highest positive cost wins)."""
+    candidates = [
+        (float(costs.get(f"cost_casualtys_{category}", 0)), f"{category}_{agent_idx}")
+        for category in sorted(categories)
+    ]
+    candidates = [(cost, prop) for cost, prop in candidates if cost > 0]
+    if not candidates:
+        return None
+    return max(candidates)[1]
+
+
+def normalize_active_propositions(
+    raw_props: list[str],
+    *,
+    num_agents: int,
+    categories: set[str],
+    include_team_props: bool,
+) -> list[str]:
+    """Collapse runtime props to match get_possible_assignments."""
+    per_agent: dict[int, list[str]] = {i: [] for i in range(num_agents)}
+    team: list[str] = []
+    for prop in raw_props:
+        if prop in TEAM_PROPS:
+            team.append(prop)
+            continue
+        if prop.rsplit("_", 1)[-1].isdigit():
+            agent_idx = int(prop.rsplit("_", 1)[1])
+            category = prop.rsplit("_", 1)[0]
+            if category in categories and 0 <= agent_idx < num_agents:
+                per_agent[agent_idx].append(prop)
+
+    result: list[str] = []
+    for agent_idx in range(num_agents):
+        props = per_agent[agent_idx]
+        if not props:
+            continue
+        if len(props) == 1:
+            result.append(props[0])
+            continue
+        # Prefer entrapped over surface when both appear without cost context.
+        entrapped = sorted(p for p in props if p.startswith("entrapped_"))
+        surface = sorted(p for p in props if p.startswith("surface_"))
+        if entrapped:
+            result.append(entrapped[0])
+        elif surface:
+            result.append(surface[0])
+
+    if include_team_props:
+        result.extend(normalize_team_props(team))
+    return sorted(result)
+
 
 def should_expose_team_props(task: BaseTask) -> bool:
     """Expose team props when more than one casualty of either type exists."""

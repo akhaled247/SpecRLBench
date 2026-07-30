@@ -564,3 +564,54 @@ def test_masar1wc_train_obs_matches_masar2wc_agent0_deploy(sar_ltl_ordering: boo
         assert train_flat.shape == deploy_flat.shape
     finally:
         eval_ma.close()
+
+
+def test_normalize_active_propositions_zero_or_one_per_agent():
+    from specbench.envs.zones.sar_propositions import normalize_active_propositions
+
+    categories = {"surface", "entrapped"}
+    raw = ["surface_0", "entrapped_0", "surface_1"]
+    normalized = normalize_active_propositions(
+        raw, num_agents=2, categories=categories, include_team_props=False,
+    )
+    assert normalized.count("surface_0") + normalized.count("entrapped_0") == 1
+    assert normalized == ["entrapped_0", "surface_1"]
+
+
+def test_normalize_team_props_at_most_one():
+    from specbench.envs.zones.sar_propositions import normalize_team_props
+
+    assert normalize_team_props(["all_entrapped", "all_surface"]) == ["all_entrapped"]
+    assert normalize_team_props(["all_surface"]) == ["all_surface"]
+
+
+def test_step_propositions_are_zero_or_one_per_agent():
+    """Runtime props must match get_possible_assignments (Büchi-safe)."""
+    env = make_env('PointLTL0MASAR2WC-v0', flat=False)
+    try:
+        env.reset(seed=3)
+        valid = {
+            tuple(sorted(a.get_true_propositions()))
+            for a in env.get_possible_assignments()
+        }
+        for _ in range(25):
+            action = {
+                agent: env.action_space(agent).sample()
+                for agent in env.unwrapped.possible_agents
+            }
+            _obs, _reward, _terminated, _truncated, info = env.step(action)
+            props = info['propositions']
+            per_agent: dict[int, list[str]] = {}
+            team = []
+            for prop in props:
+                if prop in ('all_entrapped', 'all_surface'):
+                    team.append(prop)
+                else:
+                    idx = int(prop.rsplit('_', 1)[1])
+                    per_agent.setdefault(idx, []).append(prop)
+            assert all(len(v) <= 1 for v in per_agent.values())
+            assert len(team) <= 1
+            true_props = tuple(sorted(p for p in props))
+            assert true_props in valid or true_props == ()
+    finally:
+        env.close()

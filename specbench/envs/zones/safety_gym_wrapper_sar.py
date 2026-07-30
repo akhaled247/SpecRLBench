@@ -10,6 +10,9 @@ from gymnasium.spaces import Box
 from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
 from specbench.envs.zones.sar_propositions import (
     TEAM_PROPS,
+    normalize_active_propositions,
+    normalize_team_props,
+    pick_per_agent_prop,
     should_expose_team_props,
     team_active_props,
 )
@@ -71,15 +74,13 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
 
         info['propositions'] = []
         info['casualty_visible'] = False
+        task = self.env.unwrapped.task
+        expose_team = should_expose_team_props(task)
         for i, a in enumerate(self.env.unwrapped.possible_agents):
             agent_info: dict = info[a]
-            # print(f'<safety_gym_wrapper_sar> agent_info={agent_info}')
-            # print(f'<safety_gym_wrapper_sar> categories={self.categories}')
-            active_props = [c + '_' + str(i) for c in self.categories if agent_info[f'cost_casualtys_{c}'] > 0]
-            info['propositions'].extend(active_props)
-            # if len(info['propositions'])>0: 
-            #   print(f"<safety_gym_wrapper_sar> info['propositions']={info['propositions']}")
-            task = self.env.unwrapped.task
+            prop = pick_per_agent_prop(self.categories, i, agent_info)
+            if prop is not None:
+                info['propositions'].append(prop)
             inside = agent_inside_building_idx(task, i) is not None
             entered = bool(getattr(task, '_buildings_entered', set()))
             if (
@@ -98,9 +99,15 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
                 info['casualty_visible'] = True
                 self.prev_casualty_visible = True
 
-        task = self.env.unwrapped.task
-        if should_expose_team_props(task):
-            info['propositions'].extend(team_active_props(task))
+        if expose_team:
+            info['propositions'].extend(normalize_team_props(team_active_props(task)))
+
+        info['propositions'] = normalize_active_propositions(
+            info['propositions'],
+            num_agents=self.num_agents,
+            categories=self.categories,
+            include_team_props=False,
+        )
 
         mission_complete = all(self.env.unwrapped.task.goal_achieved)
 
