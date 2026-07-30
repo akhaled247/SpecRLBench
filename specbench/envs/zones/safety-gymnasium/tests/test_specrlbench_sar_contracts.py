@@ -566,6 +566,21 @@ def test_masar1wc_train_obs_matches_masar2wc_agent0_deploy(sar_ltl_ordering: boo
         eval_ma.close()
 
 
+def test_resolve_casualty_lidar_keys_for_observer_falls_back_to_egocentric():
+    from specbench.envs.zones.sar_propositions import resolve_casualty_lidar_keys_for_observer
+
+    available = {
+        "surface_casualtys_lidar_1",
+        "entrapped_casualtys_lidar_1",
+    }
+    assert resolve_casualty_lidar_keys_for_observer(
+        "surface_0", 1, available_keys=available,
+    ) == ["surface_casualtys_lidar_1"]
+    assert resolve_casualty_lidar_keys_for_observer(
+        "all_entrapped", 1, num_agents=2, available_keys=available,
+    ) == ["entrapped_casualtys_lidar_1"]
+
+
 def test_normalize_active_propositions_zero_or_one_per_agent():
     from specbench.envs.zones.sar_propositions import normalize_active_propositions
 

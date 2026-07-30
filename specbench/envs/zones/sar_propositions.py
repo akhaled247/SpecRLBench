@@ -128,3 +128,36 @@ def resolve_casualty_lidar_keys(
     if prop in TEAM_PROPS:
         return [resolve_casualty_lidar_key(prop, i) for i in range(num_agents)]
     return [resolve_casualty_lidar_key(prop, agent_idx)]
+
+
+def resolve_casualty_lidar_keys_for_observer(
+    prop: str,
+    observer_idx: int,
+    *,
+    num_agents: int = 1,
+    available_keys: set[str] | frozenset[str] | None = None,
+) -> list[str]:
+    """Lidar keys present in one agent's obs dict for a Büchi reach/avoid prop.
+
+    Per-agent obs only contains keys suffixed with that agent's index (see
+    ``BaseTask.process_obs``). When the active subgoal names another agent's
+    prop (e.g. ``surface_0`` while acting as agent 1), fall back to the
+    observer's egocentric channel for the same casualty category.
+    """
+    if prop in TEAM_PROPS:
+        keys = [resolve_casualty_lidar_key(prop, i) for i in range(num_agents)]
+        if available_keys is not None:
+            keys = [k for k in keys if k in available_keys]
+        if keys:
+            return keys
+        return [resolve_casualty_lidar_key(prop, observer_idx)]
+
+    primary = resolve_casualty_lidar_key(prop, observer_idx)
+    if available_keys is None or primary in available_keys:
+        return [primary]
+
+    category, _prop_agent = prop.rsplit("_", 1)
+    fallback = f"{category}_casualtys_lidar_{observer_idx}"
+    if available_keys is not None and fallback in available_keys:
+        return [fallback]
+    return [primary]
