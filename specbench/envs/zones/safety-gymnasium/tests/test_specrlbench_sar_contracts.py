@@ -528,3 +528,39 @@ def test_ltl_collision_alone_does_not_yield_cost():
         assert not terminated
     finally:
         env.close()
+
+
+def _flatten_dict_obs(obs: dict, keys: list[str]) -> np.ndarray:
+    parts = [np.ravel(np.asarray(obs[k], dtype=np.float32)) for k in keys]
+    return np.concatenate(parts, axis=0).astype(np.float32)
+
+
+@pytest.mark.parametrize('sar_ltl_ordering', [False, True])
+def test_masar1wc_train_obs_matches_masar2wc_agent0_deploy(sar_ltl_ordering: bool):
+    """Paper deploy: shared SA policy obs on agent_0 must match MASAR1WC train flat obs."""
+    train_env = 'PointLTL0MASAR1WC-v0'
+    eval_env = 'PointLTL0MASAR2WC-v0'
+
+    train = make_env(train_env, flat=True, sar_ltl_ordering=sar_ltl_ordering)
+    try:
+        train_obs, _ = train.reset(seed=7)
+        flatten_keys = sorted(train_obs.keys())
+    finally:
+        train.close()
+
+    eval_ma = make_env(eval_env, flat=False, sar_ltl_ordering=sar_ltl_ordering)
+    try:
+        eval_obs, _ = eval_ma.reset(seed=7)
+        agent0 = eval_obs['agent_0']
+        for key in flatten_keys:
+            assert key in agent0, f'missing {key!r} on MASAR2 agent_0'
+            t_size = np.ravel(train_obs[key]).size
+            e_size = np.ravel(agent0[key]).size
+            assert t_size == e_size, (
+                f'{key!r}: train flat size {t_size} != agent_0 size {e_size}'
+            )
+        train_flat = _flatten_dict_obs(train_obs, flatten_keys)
+        deploy_flat = _flatten_dict_obs(agent0, flatten_keys)
+        assert train_flat.shape == deploy_flat.shape
+    finally:
+        eval_ma.close()

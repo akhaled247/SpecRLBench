@@ -168,6 +168,22 @@ class SingleGoalSARLevel0(BaseTask):
             self.observation_space = self.obs_info.obs_space_dict
         return self.observation_space
 
+    def process_obs(self, obs: dict) -> dict:
+        """Split global buildings-visited vector into per-agent scalars for deploy parity."""
+        processed = super().process_obs(obs)
+        buildings = building_geom(self)
+        if buildings is None:
+            return processed
+        key = f'{buildings.color_name}_buildings_visited'
+        if key not in obs:
+            return processed
+        visited = np.asarray(obs[key], dtype=np.float64).reshape(-1)
+        for i in range(self.agent_num):
+            agent = f'agent_{i}'
+            if agent in processed and i < visited.size:
+                processed[agent][key] = np.array([visited[i]], dtype=np.float64)
+        return processed
+
     def calculate_reward(self):
         """Distance delta toward visible casualty and touch bonus."""
         rewards = {}
