@@ -77,6 +77,12 @@ def __combine(tasks, agents, max_episode_steps):
                     env_id = f'{robot_name}{pre}-{VERSION}.{post}'
                 else:
                     env_id = f'{robot_name}{task_name}-{VERSION}'
+            elif 'Ltl' in task_name:
+                if '.' in task_name:
+                    pre, post = task_name.split('.')
+                    env_id = f'{robot_name}{pre}-{VERSION}.{post}'
+                else:
+                    env_id = f'{robot_name}{task_name}-{VERSION}'
             else:
                 env_id = f'{PREFIX}{robot_name}{task_name}-{VERSION}'
             
@@ -93,7 +99,7 @@ def __combine(tasks, agents, max_episode_steps):
             if MAKE_VISION_ENVIRONMENTS:
                 # Vision inputs
                 # print(f"DEBUG: task_name = {task_name}")
-                if "LTL" in task_name or "SAR" in task_name:
+                if "LTL" in task_name or "Ltl" in task_name or "SAR" in task_name:
                     if '.' in task_name:
                         pre, post = task_name.split('.')
                         vision_env_name = f'{robot_name}{pre}Vision-{VERSION}.{post}'
@@ -115,7 +121,7 @@ def __combine(tasks, agents, max_episode_steps):
 
             if MAKE_DEBUG_ENVIRONMENTS and robot_name in ['Point', 'Car', 'Racecar']:
                 # Keyboard inputs for debugging
-                if 'LTL' in task_name:
+                if 'LTL' in task_name or 'Ltl' in task_name:
                     debug_env_name = f'{robot_name}{task_name}Debug-{VERSION}'
                 else:
                     debug_env_name = f'{PREFIX}{robot_name}{task_name}Debug-{VERSION}'
@@ -148,6 +154,15 @@ ltl_tasks = {'LTL0': {},
              'LTL2.partial_overlap': {'partial_observability': 'True', 'allow_overlap': 'True'},
              }
 __combine(ltl_tasks, robots, max_episode_steps=None)
+
+# GenZ ZoneEnv (static zones) — PointLtlSafety{N}-v0
+ltl_safety_tasks = {
+    'LtlSafety2': {},
+    'LtlSafety3': {},
+    'LtlSafety4': {},
+    'LtlSafety5': {},
+}
+__combine(ltl_safety_tasks, robots, max_episode_steps=None)
 
 # ----------------------------------------
 # Safety Navigation

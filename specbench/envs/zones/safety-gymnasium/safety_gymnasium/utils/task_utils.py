@@ -21,7 +21,10 @@ import numpy as np
 
 
 def get_task_class_name(task_id):
-    """Help to translate task_id into task_class_name."""  
+    """Help to translate task_id into task_class_name."""
+    if 'LtlSafety' in task_id:
+        task_num = re.search(r'LtlSafety(\d)', task_id).group(1)
+        return f'LtlSafetyLevel{task_num}'
     if 'LTL' in task_id:
         if "Customized" in task_id:
             return "CustomizedLTL"
