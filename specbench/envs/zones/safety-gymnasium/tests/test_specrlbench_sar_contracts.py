@@ -581,6 +581,18 @@ def test_resolve_casualty_lidar_keys_for_observer_falls_back_to_egocentric():
     ) == ["entrapped_casualtys_lidar_1"]
 
 
+def test_normalize_active_propositions_includes_team_props_when_enabled():
+    from specbench.envs.zones.sar_propositions import normalize_active_propositions
+
+    categories = {"surface", "entrapped"}
+    raw = ["surface_0", "entrapped_0", "surface_1", "all_entrapped"]
+    normalized = normalize_active_propositions(
+        raw, num_agents=2, categories=categories, include_team_props=True,
+    )
+    assert normalized.count("surface_0") + normalized.count("entrapped_0") == 1
+    assert normalized == ["all_entrapped", "entrapped_0", "surface_1"]
+
+
 def test_normalize_active_propositions_zero_or_one_per_agent():
     from specbench.envs.zones.sar_propositions import normalize_active_propositions
 

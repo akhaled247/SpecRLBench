@@ -106,7 +106,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
             info['propositions'],
             num_agents=self.num_agents,
             categories=self.categories,
-            include_team_props=False,
+            include_team_props=expose_team,
         )
 
         mission_complete = all(self.env.unwrapped.task.goal_achieved)
