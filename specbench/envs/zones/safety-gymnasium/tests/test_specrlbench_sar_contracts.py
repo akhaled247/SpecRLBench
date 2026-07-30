@@ -418,6 +418,8 @@ def test_sar_ltl_ordering_surface_rescue_before_entrapped_yields_cost():
     """LTL ordering wrapper penalizes surface rescue before all entrapped are rescued."""
     from unittest.mock import patch
 
+    from specbench.envs.zones.safety_gym_wrapper_sar import SafetyGymWrapperMASAR
+
     env = make_env('PointLTL0MASAR1WC-v0', flat=True, sar_ltl_ordering=True)
     try:
         env.reset(seed=0)
@@ -433,7 +435,7 @@ def test_sar_ltl_ordering_surface_rescue_before_entrapped_yields_cost():
             },
         }
 
-        with patch.object(env.__class__.__bases__[0], 'step', return_value=(
+        with patch.object(SafetyGymWrapperMASAR, 'step', return_value=(
             fake_obs, fake_reward, fake_terminated, fake_truncated, fake_info,
         )):
             _obs, _reward, _terminated, _truncated, info = env.step(env.action_space.sample())
@@ -471,5 +473,58 @@ def test_pointltl0masar2_registers_with_two_agents():
         assert env.unwrapped.num_agents == 2
         obs, _ = env.reset(seed=0)
         assert set(obs) == {'agent_0', 'agent_1'}
+    finally:
+        env.close()
+
+
+def test_wc_ignores_collision_for_cost_and_termination():
+    """Paper protocol: inter-agent collision must not drive WC cost or termination."""
+    from unittest.mock import patch
+
+    from specbench.envs.zones.safety_gym_wrapper_sar import SafetyGymWrapperMASAR
+
+    env = make_env('PointLTL0MASAR2WC-v0', flat=True)
+    try:
+        env.reset(seed=0)
+        fake_obs = env.observation_space.sample()
+        fake_info = {
+            'agent_0': {'cost_collision': 1.0, 'cost_walls': 0.0},
+            'agent_1': {'cost_collision': 1.0, 'cost_walls': 0.0},
+        }
+        with patch.object(SafetyGymWrapperMASAR, 'step', return_value=(
+            fake_obs, 0.0, False, False, fake_info,
+        )):
+            _obs, _reward, terminated, _truncated, info = env.step(env.action_space.sample())
+
+        assert info['cost'] == 0
+        assert not terminated
+    finally:
+        env.close()
+
+
+def test_ltl_collision_alone_does_not_yield_cost():
+    """LTL wrapper ignores collision; entrapped-first is tested separately."""
+    from unittest.mock import patch
+
+    from specbench.envs.zones.safety_gym_wrapper_sar import SafetyGymWrapperMASAR
+
+    env = make_env('PointLTL0MASAR1WC-v0', flat=True, sar_ltl_ordering=True)
+    try:
+        env.reset(seed=0)
+        fake_obs = env.observation_space.sample()
+        fake_info = {
+            'agent_0': {
+                'cost_collision': 1.0,
+                'cost_walls': 0.0,
+                'cost_casualtys_surface': 0.0,
+            },
+        }
+        with patch.object(SafetyGymWrapperMASAR, 'step', return_value=(
+            fake_obs, 0.0, False, False, fake_info,
+        )):
+            _obs, _reward, terminated, _truncated, info = env.step(env.action_space.sample())
+
+        assert info['cost'] == 0
+        assert not terminated
     finally:
         env.close()

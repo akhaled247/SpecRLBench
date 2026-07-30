@@ -8,7 +8,7 @@ class SafetyGymWrapperMASARWC(SafetyGymWrapperMASAR):
     ``terminated`` to a bool. Must set that bool (not ``terminated[agent]``).
     """
 
-    _cost_keys = ["cost_walls", "cost_collision"]
+    _cost_keys = ["cost_walls"]
     def step(self, action):
         obs, reward, terminated, truncated, info = super().step(action)
         info["cost"] = 0

@@ -5,15 +5,13 @@ from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
 
 
 class SafetyGymWrapperMASARLTL(SafetyGymWrapperMASARWC):
-    """Wall-cost (WC) SAR wrapper: terminate + ``info['cost']`` on ``cost_walls``.
+    """LTL-ordering SAR wrapper: WC wall costs plus entrapped-before-surface penalty.
 
-    Parent ``SafetyGymWrapperMASAR`` with ``flat=True`` already collapses
-    ``terminated`` to a bool. Must set that bool (not ``terminated[agent]``).
+    Inter-agent ``cost_collision`` is not propagated (paper §5.3 deploy ignores collisions).
     """
 
-    _cost_keys = ["cost_walls", "cost_collision"]
     def step(self, action):
-        obs, reward, terminated, truncated, info = super().step(action)
+        obs, reward, terminated, truncated, info = super(SafetyGymWrapperMASARWC, self).step(action)
         info["cost"] = 0
         hit = False
         for a in self.env.unwrapped.possible_agents:
@@ -28,7 +26,6 @@ class SafetyGymWrapperMASARLTL(SafetyGymWrapperMASARWC):
                         terminated[a] = True
             if (float(agent_info.get('cost_casualtys_surface', 0) or 0) > 0
                 and not all_entrapped_casualties_rescued(self.env.unwrapped.task)):
-                # print('fajfl;kds;ljdsafa')
                 info["cost"] += 1
                 hit = True
                 if isinstance(terminated, dict):
