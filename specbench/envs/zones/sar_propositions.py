@@ -14,6 +14,11 @@ if TYPE_CHECKING:
 
 TEAM_PROPS = ("all_entrapped", "all_surface")
 
+
+def is_entrapped_prop(prop: str) -> bool:
+    """True for per-agent ``entrapped_*`` and team ``all_entrapped`` propositions."""
+    return prop == "all_entrapped" or prop.startswith("entrapped_")
+
 # When multiple team props are simultaneously true, Büchi pruning allows only one.
 _TEAM_PROP_PRIORITY = ("all_entrapped", "all_surface")
 
