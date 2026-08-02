@@ -221,15 +221,16 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
             # pylint: disable-next=consider-using-generator
             (sum([self.action_space(agent).shape[0] for agent in self.possible_agents]),),
         )
-        # for index, agent in enumerate(self.possible_agents):
-        #     action[agent] = np.array(action[agent], copy=False)  # cast to ndarray
-        #     if action[agent].shape != self.action_space(agent).shape:  # check action dimension
-        #         raise ValueError('Action dimension mismatch')
-        #     global_action[
-        #         index
-        #         * self.action_space(agent).shape[0] : (index + 1)
-        #         * self.action_space(agent).shape[0]
-        #     ] = action[agent]
+        per_agent_dim = self.action_space(self.possible_agents[0]).shape[0]
+        for index, agent in enumerate(self.possible_agents):
+            act = np.asarray(action[agent], dtype=np.float64).reshape(-1)
+            if act.shape != (per_agent_dim,):
+                raise ValueError(
+                    f"Action dimension mismatch for {agent}: {act.shape} vs {(per_agent_dim,)}"
+                )
+            global_action[
+                index * per_agent_dim : (index + 1) * per_agent_dim
+            ] = act
 
         # NOTE: the action is a dict of arrays, each array corresponds to an agent's action
         # then for this global action, we need to concatenate all agents' actions,
