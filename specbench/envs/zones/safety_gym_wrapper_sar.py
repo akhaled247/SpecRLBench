@@ -110,6 +110,14 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         )
 
         mission_complete = all(self.env.unwrapped.task.goal_achieved)
+        if not mission_complete and isinstance(info, dict):
+            # Builder may stamp goal_met on agents / top-level before wrapper sees task flags.
+            mission_complete = bool(info.get('goal_met')) or any(
+                isinstance(info.get(a), dict) and info[a].get('goal_met')
+                for a in getattr(self.env.unwrapped, 'possible_agents', [])
+            )
+        if mission_complete:
+            info['goal_met'] = True
 
         if self.flat:
             obs = self.flatten_obs(obs)

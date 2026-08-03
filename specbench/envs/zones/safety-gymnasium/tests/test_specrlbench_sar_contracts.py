@@ -535,6 +535,23 @@ def _flatten_dict_obs(obs: dict, keys: list[str]) -> np.ndarray:
     return np.concatenate(parts, axis=0).astype(np.float32)
 
 
+def test_blocked_global_action_packing_matches_actuator_xml_order():
+    """MuJoCo Point actuators are [x_0, z_0, x_1, z_1]; dict actions must pack blocked."""
+    per_agent_dim = 2
+    agents = ["agent_0", "agent_1"]
+    action = {
+        "agent_0": np.array([0.1, -0.2], dtype=np.float64),
+        "agent_1": np.array([0.3, 0.4], dtype=np.float64),
+    }
+    global_action = np.zeros(len(agents) * per_agent_dim, dtype=np.float64)
+    for index, agent in enumerate(agents):
+        global_action[index * per_agent_dim : (index + 1) * per_agent_dim] = action[agent]
+    np.testing.assert_allclose(global_action, [0.1, -0.2, 0.3, 0.4])
+    # Interleaved (bug) would be [0.1, 0.3, -0.2, 0.4]
+    interleaved = np.stack([action[a] for a in agents], axis=1).flatten()
+    assert not np.allclose(global_action, interleaved)
+
+
 @pytest.mark.parametrize('sar_ltl_ordering', [False, True])
 def test_masar1wc_train_obs_matches_masar2wc_agent0_deploy(sar_ltl_ordering: bool):
     """Paper deploy: shared SA policy obs on agent_0 must match MASAR1WC train flat obs."""

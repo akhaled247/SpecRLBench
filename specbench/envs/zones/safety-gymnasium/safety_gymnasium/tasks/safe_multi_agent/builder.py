@@ -228,21 +228,11 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
                 raise ValueError(
                     f"Action dimension mismatch for {agent}: {act.shape} vs {(per_agent_dim,)}"
                 )
+            # Blocked layout matches MuJoCo actuator XML order:
+            # [agent0_dim0, agent0_dim1, ..., agent1_dim0, agent1_dim1, ...]
             global_action[
                 index * per_agent_dim : (index + 1) * per_agent_dim
             ] = act
-
-        # NOTE: the action is a dict of arrays, each array corresponds to an agent's action
-        # then for this global action, we need to concatenate all agents' actions,
-        # but the dimention order is this: [agent0_dim0, agent1_dim0, ..., agentN_dim0,
-        #                                   agent0_dim1, agent1_dim1, ..., agentN_dim1,
-        #                                   ...,
-        #                                   agent0_dimM, agent1_dimM, ..., agentN_dimM]
-
-        # Build a 2D array of shape (act_dim, num_agents) where each column is an agent's action
-        action_matrix = np.stack([action[agent] for agent in self.possible_agents], axis=1)  # shape: (act_dim, num_agents)
-        # Flatten in row-major order to get [agent0_dim0, agent1_dim0, ..., agentN_dim0, agent0_dim1, ...]
-        global_action[:] = action_matrix.flatten()
 
         # print(f"DEBUG: global_action = {global_action}")
         exception = self.task.simulation_forward(global_action)
@@ -305,6 +295,7 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         processed_state = self.task.process_obs(state)
         # print(f"DEBUG: processed_state = {processed_state}")
         observations, terminateds, truncateds, infos = {}, {}, {}, {}
+        goal_met = bool(info.get('goal_met', False))
         for agents in self.possible_agents:
             observations[agents] = processed_state[agents]
 
@@ -315,7 +306,14 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
             
             # NOTE: info contains a vary important field 'propositions',
             # which are set in the wrappers, deprecated here
-            infos[agents] = info[agents]
+            agent_info = info[agents]
+            if goal_met:
+                agent_info = dict(agent_info)
+                agent_info['goal_met'] = True
+            infos[agents] = agent_info
+        if goal_met:
+            # Top-level flag for Gymnasium SAR wrappers (alongside per-agent copies).
+            infos['goal_met'] = True
 
         return observations, rewards, costs, terminateds, truncateds, infos
 
