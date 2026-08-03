@@ -176,6 +176,7 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         self.terminated = False
         self.truncated = False
         self.steps = 0  # Count of steps taken in this episode
+        self._ctrl_layout_asserted = False
 
         self.task.reset()
         self.task.update_world()  # refresh specific settings
@@ -217,22 +218,46 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
 
         info = {}
 
-        global_action = np.zeros(
-            # pylint: disable-next=consider-using-generator
-            (sum([self.action_space(agent).shape[0] for agent in self.possible_agents]),),
-        )
-        per_agent_dim = self.action_space(self.possible_agents[0]).shape[0]
-        for index, agent in enumerate(self.possible_agents):
+        agents = list(self.possible_agents)
+        per_agent_dim = int(self.action_space(agents[0]).shape[0])
+        for agent in agents:
             act = np.asarray(action[agent], dtype=np.float64).reshape(-1)
             if act.shape != (per_agent_dim,):
                 raise ValueError(
                     f"Action dimension mismatch for {agent}: {act.shape} vs {(per_agent_dim,)}"
                 )
-            # Blocked layout matches MuJoCo actuator XML order:
-            # [agent0_dim0, agent0_dim1, ..., agent1_dim0, agent1_dim1, ...]
-            global_action[
-                index * per_agent_dim : (index + 1) * per_agent_dim
-            ] = act
+
+        # Pre-P0 packing: interleaved [a0_d0, a1_d0, ..., a0_d1, a1_d1, ...].
+        # Empirically required for MA Point; assert live actuator names on first step.
+        from safety_gymnasium.tasks.safe_multi_agent.utils.ma_action_pack import (
+            actuator_names,
+            classify_ctrl_layout,
+        )
+
+        if not getattr(self, "_ctrl_layout_asserted", False):
+            import warnings
+
+            names = actuator_names(self.task.model)
+            classified = classify_ctrl_layout(
+                names,
+                num_agents=len(agents),
+                per_agent_dim=per_agent_dim,
+            )
+            if classified != "interleaved" and len(agents) > 1:
+                warnings.warn(
+                    "MA Builder packs actions INTERLEAVED, but live MuJoCo actuators "
+                    f"classify as {classified!r}: {names}. If agents spin/freeze, packing "
+                    "and model order disagree — inspect actuator names.",
+                    stacklevel=2,
+                )
+            self._ctrl_layout_asserted = True
+            self._ctrl_layout_classified = classified
+
+        action_matrix = np.stack(
+            [np.asarray(action[agent], dtype=np.float64).reshape(-1) for agent in agents],
+            axis=1,
+        )
+        global_action = action_matrix.flatten()
 
         # print(f"DEBUG: global_action = {global_action}")
         exception = self.task.simulation_forward(global_action)

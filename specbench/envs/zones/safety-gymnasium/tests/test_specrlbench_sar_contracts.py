@@ -535,21 +535,33 @@ def _flatten_dict_obs(obs: dict, keys: list[str]) -> np.ndarray:
     return np.concatenate(parts, axis=0).astype(np.float32)
 
 
-def test_blocked_global_action_packing_matches_actuator_xml_order():
-    """MuJoCo Point actuators are [x_0, z_0, x_1, z_1]; dict actions must pack blocked."""
-    per_agent_dim = 2
+def test_classify_ctrl_layouts():
+    from safety_gymnasium.tasks.safe_multi_agent.utils.ma_action_pack import (
+        classify_ctrl_layout,
+    )
+
+    assert classify_ctrl_layout(
+        ["x_0", "z_0", "x_1", "z_1"], num_agents=2, per_agent_dim=2,
+    ) == "blocked"
+    assert classify_ctrl_layout(
+        ["x_0", "x_1", "z_0", "z_1"], num_agents=2, per_agent_dim=2,
+    ) == "interleaved"
+    assert classify_ctrl_layout(
+        ["x", "z", "x1", "z1"], num_agents=2, per_agent_dim=2,
+    ) == "blocked"
+
+
+def test_interleaved_pack_matches_pre_p0_builder():
+    """Builder MA pack is interleaved (pre-P0); keep this locked to empirical deploy."""
     agents = ["agent_0", "agent_1"]
     action = {
         "agent_0": np.array([0.1, -0.2], dtype=np.float64),
         "agent_1": np.array([0.3, 0.4], dtype=np.float64),
     }
-    global_action = np.zeros(len(agents) * per_agent_dim, dtype=np.float64)
-    for index, agent in enumerate(agents):
-        global_action[index * per_agent_dim : (index + 1) * per_agent_dim] = action[agent]
-    np.testing.assert_allclose(global_action, [0.1, -0.2, 0.3, 0.4])
-    # Interleaved (bug) would be [0.1, 0.3, -0.2, 0.4]
-    interleaved = np.stack([action[a] for a in agents], axis=1).flatten()
-    assert not np.allclose(global_action, interleaved)
+    global_action = np.stack(
+        [action[a] for a in agents], axis=1,
+    ).flatten()
+    np.testing.assert_allclose(global_action, [0.1, 0.3, -0.2, 0.4])
 
 
 @pytest.mark.parametrize('sar_ltl_ordering', [False, True])

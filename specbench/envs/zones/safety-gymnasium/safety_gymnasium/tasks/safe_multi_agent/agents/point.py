@@ -69,6 +69,6 @@ class Point(BaseAgent):
             elif key == glfw.KEY_L:
                 action[1] -= 1
         actions = np.zeros(self.agent_num * 2, dtype=np.float64)
-        # Blocked ctrl layout: [x_0, z_0, x_1, z_1, ...] (matches actuator XML).
-        actions[0:2] = action
+        # Pre-P0 interleaved ctrl: agent_0 uses indices [0, agent_num].
+        actions[[0, self.agent_num]] = [action[0], action[1]]
         self.apply_action(actions)
