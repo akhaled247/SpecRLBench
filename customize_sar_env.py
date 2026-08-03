@@ -19,10 +19,10 @@ env_config = {
 
     # === user-facing knobs (defaults from customized_defaults in multi_goal_sar.yaml) ===
     'agent_num': 2,
-    'building_num': 4,  # 0 → no buildings; omit or None → agent_num
-    'wall_count': 10,
-    'surface_casualties_per_agent': 3,
-    'entrapped_casualties_per_agent': 2,
+    'building_num': 1,  # 0 → no buildings; omit or None → agent_num
+    'wall_count': 0,
+    'surface_casualties_per_agent': 0.5,
+    'entrapped_casualties_per_agent': 0.5,
     'reward_goal': 1.0,
     'lidar_conf.num_bins': 16,
 

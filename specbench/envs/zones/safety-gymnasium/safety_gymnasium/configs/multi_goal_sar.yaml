@@ -19,8 +19,8 @@ levels:
   level0:
     wall_count: 0
     surface_casualties_per_agent: 1
-    entrapped_casualties_per_agent: 0
-    building_num: 0
+    entrapped_casualties_per_agent: 1
+    building_num: 1
   level1:
     wall_count: 10
   level2:
@@ -88,10 +88,10 @@ gremlins:
 
 customized_defaults:
   agent_num: 2
-  building_num: null
-  wall_count: 10
+  building_num: 1
+  wall_count: 0
   surface_casualties_per_agent: 1
-  entrapped_casualties_per_agent: 0
+  entrapped_casualties_per_agent: 0.5
   reward_goal: 1.0
   lidar_conf:
     num_bins: 16
