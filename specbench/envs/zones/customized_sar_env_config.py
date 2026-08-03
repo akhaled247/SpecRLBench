@@ -9,12 +9,12 @@ from __future__ import annotations
 CUSTOMIZED_SAR_ENV_CONFIG: dict = {
     "env_id": "CustomizedSAR-v0",
     "agent_name": "Point",
-    "max_episode_steps": 1000,
+    "max_episode_steps": 2500,
     "agent_num": 2,
-    "building_num": 1,  # 0 → no buildings; omit/None → agent_num * entrapped
+    "building_num": 2,  # 0 → no buildings; omit/None → agent_num * entrapped
     "wall_count": 0,
-    "surface_casualties_per_agent": 0.5,
-    "entrapped_casualties_per_agent": 0.5,
+    "surface_casualties_per_agent": 1,
+    "entrapped_casualties_per_agent": 1,
     "reward_goal": 1.0,
     "lidar_conf.num_bins": 16,
 }

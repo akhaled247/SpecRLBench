@@ -130,11 +130,11 @@ class SingleGoalSARLevel0(BaseTask):
         all_casualtys_dist = []
         if hasattr(self, 'surface_casualtys'):
             casualty_poses = (self.surface_casualtys.pos[i] 
-                              for i in range(self.agent_num * self.surface_casualties_per_agent))
+                              for i in range(int(self.agent_num * self.surface_casualties_per_agent)))
             all_casualtys_dist.extend([self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses])
         if hasattr(self, 'entrapped_casualtys'):
             casualty_poses = (self.entrapped_casualtys.pos[i] 
-                              for i in range(self.agent_num * self.entrapped_casualties_per_agent))
+                              for i in range(int(self.agent_num * self.entrapped_casualties_per_agent)))
             all_casualtys_dist.extend([self.agent.dist_xy(agent_idx, pos) for pos in casualty_poses])
         # print(all_casualtys_dist)
         return all_casualtys_dist
