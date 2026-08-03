@@ -178,10 +178,15 @@ class SingleGoalSARLevel0(BaseTask):
         if key not in obs:
             return processed
         visited = np.asarray(obs[key], dtype=np.float64).reshape(-1)
+        # Always emit a scalar per agent (SA flatten expects the key). When
+        # building_num < agent_num, share the global any-entered bit.
+        any_entered = float(np.any(visited)) if visited.size else 0.0
         for i in range(self.agent_num):
             agent = f'agent_{i}'
-            if agent in processed and i < visited.size:
-                processed[agent][key] = np.array([visited[i]], dtype=np.float64)
+            if agent not in processed:
+                continue
+            value = float(visited[i]) if i < visited.size else any_entered
+            processed[agent][key] = np.array([value], dtype=np.float64)
         return processed
 
     def calculate_reward(self):
