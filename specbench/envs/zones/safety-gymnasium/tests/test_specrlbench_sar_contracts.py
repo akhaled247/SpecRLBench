@@ -562,6 +562,11 @@ def test_masar1wc_train_obs_matches_masar2wc_agent0_deploy(sar_ltl_ordering: boo
         train_flat = _flatten_dict_obs(train_obs, flatten_keys)
         deploy_flat = _flatten_dict_obs(agent0, flatten_keys)
         assert train_flat.shape == deploy_flat.shape
+        # MASAR1 gremlin channel is ~empty (self excluded); MASAR2 is live other-agent.
+        gremlin_keys = [k for k in flatten_keys if 'gremlins' in k and 'lidar' in k]
+        for key in gremlin_keys:
+            train_norm = float(np.linalg.norm(np.ravel(train_obs[key])))
+            assert train_norm < 1e-5, f'MASAR1 {key!r} should be ~0, got norm={train_norm}'
     finally:
         eval_ma.close()
 
