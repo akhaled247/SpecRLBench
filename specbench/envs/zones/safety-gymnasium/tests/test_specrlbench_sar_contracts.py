@@ -759,9 +759,15 @@ def test_walls_lidar_uses_closest_surface_not_center():
         assert n_los > 0
 
         obs = task.obs()
-        surface_lidar = task._obs_lidar_pseudo_occluded_new(0, walls)
-        np.testing.assert_allclose(obs['walls_lidar_0'], surface_lidar)
-        assert float(surface_lidar.max()) > 0.0
+        interior_lidar = task._obs_lidar_pseudo_occluded_new(0, walls)
+        arena = task._arena_ltl_walls()
+        assert arena is not None
+        arena_lidar = task._arena_walls_lidar(0)
+        expected = np.maximum(interior_lidar, arena_lidar)
+        np.testing.assert_allclose(obs['walls_lidar_0'], expected)
+        assert float(expected.max()) > 0.0
+        # Arena merge can only raise (or leave) bins vs interior-only.
+        assert float(obs['walls_lidar_0'].max()) >= float(interior_lidar.max()) - 1e-9
 
         with patch.object(
             walls,
@@ -769,7 +775,7 @@ def test_walls_lidar_uses_closest_surface_not_center():
             side_effect=lambda agent_idx, row: walls.pos[row],
         ):
             center_lidar = task._obs_lidar_pseudo_occluded_new(0, walls)
-        assert not np.allclose(surface_lidar, center_lidar)
+        assert not np.allclose(interior_lidar, center_lidar)
 
         # Agent beside long face far from center: surface closer than body center.
         row = 0

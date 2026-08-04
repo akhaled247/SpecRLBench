@@ -151,15 +151,26 @@ class SingleGoalSARLevel0(BaseTask):
     def build_observation_space(self) -> gymnasium.spaces.Dict:
         super().build_observation_space()
         buildings = building_geom(self)
+        obs_space_dict = OrderedDict(self.obs_info.obs_space_dict.spaces)
         if buildings is not None:
-            obs_space_dict = OrderedDict(self.obs_info.obs_space_dict.spaces)
             obs_space_dict[f'{buildings.color_name}_buildings_visited'] = gymnasium.spaces.Box(
                 0.0,
                 1.0,
                 (buildings.num,),
                 dtype=np.float64,
             )
-            self.obs_info.obs_space_dict = gymnasium.spaces.Dict(obs_space_dict)
+        # Arena boundary can cost ``walls`` even when wall_count=0 — keep walls_lidar keys.
+        if self._arena_ltl_walls() is not None:
+            for i in range(self.agent_num):
+                name = f'walls_lidar_{i}'
+                if name not in obs_space_dict:
+                    obs_space_dict[name] = gymnasium.spaces.Box(
+                        0.0,
+                        1.0,
+                        (self.lidar_conf.num_bins,),
+                        dtype=np.float64,
+                    )
+        self.obs_info.obs_space_dict = gymnasium.spaces.Dict(obs_space_dict)
         if self.observation_flatten:
             self.observation_space = gymnasium.spaces.utils.flatten_space(
                 self.obs_info.obs_space_dict,
@@ -379,6 +390,40 @@ class SingleGoalSARLevel0(BaseTask):
                 collision_threshold=self.building_perimeter_wall_collision_threshold,
             ))
 
+    def _arena_ltl_walls(self):
+        """Arena boundary ``LtlWalls`` (name ``ltl_walls``), not building perimeters."""
+        arena = getattr(self, 'ltl_walls', None)
+        if arena is not None and getattr(arena, 'name', None) == 'ltl_walls':
+            return arena
+        for obstacle in self._obstacles:
+            if getattr(obstacle, 'name', None) == 'ltl_walls':
+                return obstacle
+        return None
+
+    def _arena_walls_lidar(self, agent_idx: int) -> np.ndarray:
+        """Pseudo lidar to arena boundary surfaces (no LOS; arena not lidar-observable)."""
+        arena = self._arena_ltl_walls()
+        bins = int(self.lidar_conf.num_bins)
+        if arena is None or not getattr(arena, 'num', 0):
+            return np.zeros(bins, dtype=np.float64)
+        positions = [
+            self._lidar_target_pos(agent_idx, arena, row)
+            for row in range(int(arena.num))
+        ]
+        return self._obs_lidar_pseudo_new(agent_idx, positions)
+
+    def _merge_arena_into_walls_lidar(self, obs: dict) -> None:
+        """Fold arena ``ltl_walls`` into ``walls_lidar_*`` (max-pool with interior)."""
+        if self._arena_ltl_walls() is None:
+            return
+        for i in range(self.agent_num):
+            key = f'walls_lidar_{i}'
+            arena_lidar = self._arena_walls_lidar(i)
+            if key in obs:
+                obs[key] = np.maximum(np.asarray(obs[key], dtype=np.float64), arena_lidar)
+            else:
+                obs[key] = arena_lidar
+
     def try_lidar_ids(self, obstacle, obs, i, skip_instance_rows=None):
         """pseudo_occluded lidar with per-instance line-of-sight (walls block view)."""
         skip_rows = skip_instance_rows or frozenset()
@@ -439,6 +484,8 @@ class SingleGoalSARLevel0(BaseTask):
 
             if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                 obs[obstacle.name + '_comp'] = self._obs_compass(obstacle.pos)
+
+        self._merge_arena_into_walls_lidar(obs)
 
         buildings = building_geom(self)
         if buildings is not None:
