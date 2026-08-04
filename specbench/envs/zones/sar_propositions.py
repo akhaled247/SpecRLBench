@@ -13,11 +13,23 @@ if TYPE_CHECKING:
     from safety_gymnasium.tasks.safe_multi_agent.bases.base_task import BaseTask
 
 TEAM_PROPS = ("all_entrapped", "all_surface")
+WALLS_PROP = "walls"
+# Cost keys that activate the ``walls`` atomic proposition.
+WALLS_COST_KEYS = ("cost_walls", "cost_ltl_walls")
 
 
 def is_entrapped_prop(prop: str) -> bool:
     """True for per-agent ``entrapped_*`` and team ``all_entrapped`` propositions."""
     return prop == "all_entrapped" or prop.startswith("entrapped_")
+
+
+def is_walls_prop(prop: str) -> bool:
+    return prop == WALLS_PROP
+
+
+def agent_hit_walls(costs: dict[str, float]) -> bool:
+    """True when agent info reports a wall contact cost this step."""
+    return any(float(costs.get(key, 0) or 0) > 0 for key in WALLS_COST_KEYS)
 
 # When multiple team props are simultaneously true, Büchi pruning allows only one.
 _TEAM_PROP_PRIORITY = ("all_entrapped", "all_surface")
@@ -60,7 +72,11 @@ def normalize_active_propositions(
     """Collapse runtime props to match get_possible_assignments."""
     per_agent: dict[int, list[str]] = {i: [] for i in range(num_agents)}
     team: list[str] = []
+    walls = False
     for prop in raw_props:
+        if prop == WALLS_PROP:
+            walls = True
+            continue
         if prop in TEAM_PROPS:
             team.append(prop)
             continue
@@ -88,6 +104,8 @@ def normalize_active_propositions(
 
     if include_team_props:
         result.extend(normalize_team_props(team))
+    if walls:
+        result.append(WALLS_PROP)
     return sorted(result)
 
 
@@ -115,7 +133,9 @@ def team_active_props(task: BaseTask) -> list[str]:
 
 
 def resolve_casualty_lidar_key(prop: str, agent_idx: int = 0) -> str:
-    """Map a proposition name to the per-agent casualty lidar observation key."""
+    """Map a proposition name to the per-agent casualty / walls lidar observation key."""
+    if prop == WALLS_PROP:
+        return f"walls_lidar_{agent_idx}"
     if prop == "all_entrapped":
         return f"entrapped_casualtys_lidar_{agent_idx}"
     if prop == "all_surface":
@@ -130,6 +150,8 @@ def resolve_casualty_lidar_keys(
     num_agents: int = 1,
 ) -> list[str]:
     """Return lidar keys to max-pool for a proposition (team props span all agents)."""
+    if prop == WALLS_PROP:
+        return [resolve_casualty_lidar_key(prop, agent_idx)]
     if prop in TEAM_PROPS:
         return [resolve_casualty_lidar_key(prop, i) for i in range(num_agents)]
     return [resolve_casualty_lidar_key(prop, agent_idx)]
@@ -149,6 +171,12 @@ def resolve_casualty_lidar_keys_for_observer(
     prop (e.g. ``surface_0`` while acting as agent 1), fall back to the
     observer's egocentric channel for the same casualty category.
     """
+    if prop == WALLS_PROP:
+        primary = resolve_casualty_lidar_key(prop, observer_idx)
+        if available_keys is None or primary in available_keys:
+            return [primary]
+        return [primary]
+
     if prop in TEAM_PROPS:
         keys = [resolve_casualty_lidar_key(prop, i) for i in range(num_agents)]
         if available_keys is not None:

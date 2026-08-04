@@ -10,6 +10,8 @@ from gymnasium.spaces import Box
 from specbench.envs.zones.safety_gym_wrapper_ma import SafetyGymWrapperMA
 from specbench.envs.zones.sar_propositions import (
     TEAM_PROPS,
+    WALLS_PROP,
+    agent_hit_walls,
     normalize_active_propositions,
     normalize_team_props,
     pick_per_agent_prop,
@@ -51,6 +53,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         task = env.unwrapped.task
         if should_expose_team_props(task):
             self.atomic_propositions.update(TEAM_PROPS)
+        self.atomic_propositions.add(WALLS_PROP)
 
         if self.flat:
             act_space = env.action_space
@@ -76,8 +79,11 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         info['casualty_visible'] = False
         task = self.env.unwrapped.task
         expose_team = should_expose_team_props(task)
+        hit_walls = False
         for i, a in enumerate(self.env.unwrapped.possible_agents):
             agent_info: dict = info[a]
+            if agent_hit_walls(agent_info):
+                hit_walls = True
             prop = pick_per_agent_prop(self.categories, i, agent_info)
             if prop is not None:
                 info['propositions'].append(prop)
@@ -98,6 +104,9 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
             ):
                 info['casualty_visible'] = True
                 self.prev_casualty_visible = True
+
+        if hit_walls:
+            info['propositions'].append(WALLS_PROP)
 
         if expose_team:
             info['propositions'].extend(normalize_team_props(team_active_props(task)))
@@ -166,7 +175,10 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
             assignments = []
             agent_props: dict[int, set[str]] = {}
             team_props: set[str] = set()
+            has_walls = WALLS_PROP in self.atomic_propositions
             for prop in self.atomic_propositions:
+                if prop == WALLS_PROP:
+                    continue
                 if prop in TEAM_PROPS:
                     team_props.add(prop)
                     continue
@@ -180,15 +192,20 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
                 Assignment.zero_or_one_propositions(team_props)
                 if team_props else [Assignment()]
             )
+            walls_choices = (
+                Assignment.zero_or_one_propositions({WALLS_PROP})
+                if has_walls else [Assignment()]
+            )
             import itertools
-            for combo in itertools.product(*per_agent_assignments, team_choices):
+            for combo in itertools.product(*per_agent_assignments, team_choices, walls_choices):
                 merged = Assignment()
                 for a in combo:
                     merged.update(a)
                 assignments.append(merged)
             per_agent_expected = (len(self.categories) + 1) ** self.num_agents
             team_expected = (len(team_props) + 1) if team_props else 1
-            expected = per_agent_expected * team_expected
+            walls_expected = 2 if has_walls else 1
+            expected = per_agent_expected * team_expected * walls_expected
             assert len(assignments) == expected, \
                 f"Expected {expected} assignments, got {len(assignments)}"
             return assignments
@@ -198,4 +215,5 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         task = self.env.unwrapped.task
         if should_expose_team_props(task):
             props = sorted(set(props) | set(TEAM_PROPS))
+        props = sorted(set(props) | {WALLS_PROP})
         return props

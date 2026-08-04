@@ -639,11 +639,30 @@ def test_normalize_active_propositions_zero_or_one_per_agent():
     assert normalized == ["entrapped_0", "surface_1"]
 
 
+def test_normalize_active_propositions_keeps_walls():
+    from specbench.envs.zones.sar_propositions import normalize_active_propositions
+
+    categories = {"surface", "entrapped"}
+    raw = ["surface_0", "walls", "all_entrapped"]
+    normalized = normalize_active_propositions(
+        raw, num_agents=2, categories=categories, include_team_props=True,
+    )
+    assert normalized == ["all_entrapped", "surface_0", "walls"]
+
+
 def test_normalize_team_props_at_most_one():
     from specbench.envs.zones.sar_propositions import normalize_team_props
 
     assert normalize_team_props(["all_entrapped", "all_surface"]) == ["all_entrapped"]
     assert normalize_team_props(["all_surface"]) == ["all_surface"]
+
+
+def test_walls_in_get_propositions():
+    env = make_env('PointLTL0MASAR2WC-v0', flat=False)
+    try:
+        assert 'walls' in env.get_propositions()
+    finally:
+        env.close()
 
 
 def test_step_propositions_are_zero_or_one_per_agent():
@@ -664,14 +683,18 @@ def test_step_propositions_are_zero_or_one_per_agent():
             props = info['propositions']
             per_agent: dict[int, list[str]] = {}
             team = []
+            walls = 0
             for prop in props:
-                if prop in ('all_entrapped', 'all_surface'):
+                if prop == 'walls':
+                    walls += 1
+                elif prop in ('all_entrapped', 'all_surface'):
                     team.append(prop)
                 else:
                     idx = int(prop.rsplit('_', 1)[1])
                     per_agent.setdefault(idx, []).append(prop)
             assert all(len(v) <= 1 for v in per_agent.values())
             assert len(team) <= 1
+            assert walls <= 1
             true_props = tuple(sorted(p for p in props))
             assert true_props in valid or true_props == ()
     finally:
