@@ -665,6 +665,26 @@ def test_walls_in_get_propositions():
         env.close()
 
 
+def test_gremlin_stays_centered_on_agent_after_turns():
+    """Gremlin mocap must track agent XY without heading-orbit drift (L1 WC)."""
+    env = make_env('PointLTL1MASAR1WC-v0', flat=True)
+    try:
+        env.reset(seed=0)
+        task = env.unwrapped.task
+        assert task.gremlins.num >= 1
+        # Prefer yaw-heavy actions so orbit drift would show if offset returned.
+        for _ in range(40):
+            action = np.array([0.2, 0.9], dtype=np.float32)
+            env.step(action)
+        agent_xy = task.agent.get_agent_pos(0)[:2]
+        gremlin_xy = np.asarray(task.gremlins.pos[0][:2], dtype=float)
+        assert np.linalg.norm(agent_xy - gremlin_xy) < 5e-3, (
+            f'gremlin drifted: agent={agent_xy} gremlin={gremlin_xy}'
+        )
+    finally:
+        env.close()
+
+
 def test_step_propositions_are_zero_or_one_per_agent():
     """Runtime props must match get_possible_assignments (Büchi-safe)."""
     env = make_env('PointLTL0MASAR2WC-v0', flat=False)
