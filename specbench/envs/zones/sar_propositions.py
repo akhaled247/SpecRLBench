@@ -140,6 +140,11 @@ def resolve_casualty_lidar_key(prop: str, agent_idx: int = 0) -> str:
         return f"entrapped_casualtys_lidar_{agent_idx}"
     if prop == "all_surface":
         return f"surface_casualtys_lidar_{agent_idx}"
+    if "_" not in prop:
+        raise ValueError(
+            f"Not a SAR casualty prop: {prop!r}. "
+            "Zone color props belong on pre_process_obs_zones, not casualty lidar mapping."
+        )
     category, idx = prop.rsplit("_", 1)
     return f"{category}_casualtys_lidar_{idx}"
 
