@@ -271,17 +271,19 @@ def closest_surface_pos_for_named_box(
     body_name: str,
     agent_xy: np.ndarray,
 ) -> np.ndarray:
-    """Closest surface XY on a MuJoCo box body/geom that share ``body_name``."""
+    """Closest surface point on a MuJoCo box (XY nearest + body Z for ray LOS)."""
     body = engine.data.body(body_name)
-    center = np.asarray(body.xpos, dtype=float)[:2]
+    center3 = np.asarray(body.xpos, dtype=float)
     xmat = np.asarray(body.xmat, dtype=float).reshape(3, 3)
     yaw = float(np.arctan2(xmat[1, 0], xmat[0, 0]))
     size = engine.model.geom(body_name).size
-    return closest_point_on_box_xy(
+    xy = closest_point_on_box_xy(
         agent_xy,
-        center,
+        center3[:2],
         yaw,
         float(size[0]),
         float(size[1]),
     )
+    # Keep body Z so 3D LOS rays hit the elevated box (Z=0 misses walls).
+    return np.array([xy[0], xy[1], center3[2]], dtype=float)
 

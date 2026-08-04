@@ -151,7 +151,7 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
         return np.exp(-gain * np.abs(pos - threshold))
 
     def closest_surface_pos(self, agent_idx: int, row: int) -> np.ndarray:
-        """Nearest XY point on wall segment ``row`` to the agent (not body center)."""
+        """Nearest surface point on wall segment ``row`` (XY closest, body Z for LOS)."""
         agent_xy = np.asarray(self.agent.get_agent_pos(agent_idx), dtype=float)[:2]
         body_name = f'{self.name[:-1]}{row}'
         return closest_surface_pos_for_named_box(self.engine, body_name, agent_xy)

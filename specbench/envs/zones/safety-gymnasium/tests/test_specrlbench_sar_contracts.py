@@ -747,9 +747,21 @@ def test_walls_lidar_uses_closest_surface_not_center():
         assert walls.num > 0
         assert hasattr(walls, 'closest_surface_pos')
 
+        # Surface targets must keep body Z so occluded LOS rays hit elevated boxes.
+        surf0 = walls.closest_surface_pos(0, 0)
+        assert surf0.shape == (3,)
+        np.testing.assert_allclose(surf0[2], walls.pos[0][2])
+        n_los = sum(
+            1
+            for r in range(walls.num)
+            if task._lidar_line_of_sight(0, walls.closest_surface_pos(0, r), walls, r)
+        )
+        assert n_los > 0
+
         obs = task.obs()
         surface_lidar = task._obs_lidar_pseudo_occluded_new(0, walls)
         np.testing.assert_allclose(obs['walls_lidar_0'], surface_lidar)
+        assert float(surface_lidar.max()) > 0.0
 
         with patch.object(
             walls,
