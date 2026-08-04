@@ -419,12 +419,15 @@ class World:  # pylint: disable=too-many-instance-attributes
             # Add the object to the world
             mocap = mocap.copy()  # don't modify original object
             mocap['quat'] = rot2quat(mocap['rot'])
+            # Put pos/quat on the mocap *body* (same as free_geoms). A geom-local
+            # layout offset makes the weld capture a nonzero relpose, so the
+            # visual drifts off the agent center when mocap_pos tracks the agent.
             body = xmltodict.parse(
                 # pylint: disable-next=consider-using-f-string
                 """
-                <body name="{name}" mocap="true">
+                <body name="{name}" pos="{pos}" quat="{quat}" mocap="true">
                     <geom name="{name}" type="{type}" size="{size}" rgba="{rgba}"
-                        pos="{pos}" quat="{quat}" contype="0" conaffinity="0" group="{group}"/>
+                        contype="0" conaffinity="0" group="{group}"/>
                 </body>
             """.format(
                     **{k: convert(v) for k, v in mocap.items()},
