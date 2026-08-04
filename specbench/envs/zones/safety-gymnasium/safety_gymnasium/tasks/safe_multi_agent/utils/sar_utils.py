@@ -233,3 +233,55 @@ def mission_goal_achieved(task: BaseTask) -> tuple[bool, ...]:
     mission_complete = all_casualties_rescued(task)
     return tuple(mission_complete for _ in range(task.agent_num))
 
+
+def closest_point_on_box_xy(
+    point_xy: np.ndarray,
+    center_xy: np.ndarray,
+    yaw: float,
+    half_x: float,
+    half_y: float,
+) -> np.ndarray:
+    """Closest XY point on an oriented box (including interior → nearest face)."""
+    point = np.asarray(point_xy, dtype=float)[:2]
+    center = np.asarray(center_xy, dtype=float)[:2]
+    cos_t = float(np.cos(yaw))
+    sin_t = float(np.sin(yaw))
+    delta = point - center
+    # World → local (R^T); R rotates local → world by yaw.
+    local_x = cos_t * delta[0] + sin_t * delta[1]
+    local_y = -sin_t * delta[0] + cos_t * delta[1]
+    hx = float(half_x)
+    hy = float(half_y)
+    if abs(local_x) <= hx and abs(local_y) <= hy:
+        # Inside: project onto nearest face so distance is surface clearance.
+        if (hx - abs(local_x)) < (hy - abs(local_y)):
+            local_x = hx if local_x >= 0.0 else -hx
+        else:
+            local_y = hy if local_y >= 0.0 else -hy
+    else:
+        local_x = float(np.clip(local_x, -hx, hx))
+        local_y = float(np.clip(local_y, -hy, hy))
+    world_x = cos_t * local_x - sin_t * local_y + center[0]
+    world_y = sin_t * local_x + cos_t * local_y + center[1]
+    return np.array([world_x, world_y], dtype=float)
+
+
+def closest_surface_pos_for_named_box(
+    engine,
+    body_name: str,
+    agent_xy: np.ndarray,
+) -> np.ndarray:
+    """Closest surface XY on a MuJoCo box body/geom that share ``body_name``."""
+    body = engine.data.body(body_name)
+    center = np.asarray(body.xpos, dtype=float)[:2]
+    xmat = np.asarray(body.xmat, dtype=float).reshape(3, 3)
+    yaw = float(np.arctan2(xmat[1, 0], xmat[0, 0]))
+    size = engine.model.geom(body_name).size
+    return closest_point_on_box_xy(
+        agent_xy,
+        center,
+        yaw,
+        float(size[0]),
+        float(size[1]),
+    )
+

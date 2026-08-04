@@ -846,6 +846,12 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                 obs[i] = self._natural_lidar_sensor(dist)
         return obs
 
+    def _lidar_target_pos(self, agent_idx: int, obstacle, row: int) -> np.ndarray:
+        """Point used for pseudo lidar: closest surface when available, else center."""
+        if hasattr(obstacle, 'closest_surface_pos'):
+            return obstacle.closest_surface_pos(agent_idx, row)
+        return obstacle.pos[row]
+
     def _obs_lidar_pseudo_occluded_new(
         self,
         agent_idx: int,
@@ -868,7 +874,7 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
                 continue
             if self._obstacle_geom_id_for_instance(obstacle, row) is None:
                 continue
-            pos = obstacle.pos[row]
+            pos = self._lidar_target_pos(agent_idx, obstacle, row)
             if not self._lidar_line_of_sight(agent_idx, pos, obstacle, row):
                 continue
             self._accumulate_pseudo_lidar_reading(

@@ -699,3 +699,91 @@ def test_step_propositions_are_zero_or_one_per_agent():
             assert true_props in valid or true_props == ()
     finally:
         env.close()
+
+
+def test_closest_point_on_box_xy_outside_and_inside():
+    """Oriented-box closest point uses surface, including nearest face when inside."""
+    from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
+        closest_point_on_box_xy,
+    )
+
+    center = np.array([0.0, 0.0])
+    # Axis-aligned: yaw=0, half extents (1, 2)
+    np.testing.assert_allclose(
+        closest_point_on_box_xy([5.0, 0.0], center, 0.0, 1.0, 2.0),
+        [1.0, 0.0],
+    )
+    np.testing.assert_allclose(
+        closest_point_on_box_xy([0.0, 5.0], center, 0.0, 1.0, 2.0),
+        [0.0, 2.0],
+    )
+    # Outside near a long face, away from center along Y → surface at x=1, y=1.5
+    np.testing.assert_allclose(
+        closest_point_on_box_xy([3.0, 1.5], center, 0.0, 1.0, 2.0),
+        [1.0, 1.5],
+    )
+    # Inside → nearest face (closer to +X than to ±Y)
+    np.testing.assert_allclose(
+        closest_point_on_box_xy([0.8, 0.0], center, 0.0, 1.0, 2.0),
+        [1.0, 0.0],
+    )
+    # 90° yaw swaps local axes in world
+    np.testing.assert_allclose(
+        closest_point_on_box_xy([0.0, 5.0], center, np.pi / 2, 1.0, 2.0),
+        [0.0, 1.0],
+        atol=1e-9,
+    )
+
+
+def test_walls_lidar_uses_closest_surface_not_center():
+    """walls_lidar targets nearest wall surface point, not body centers."""
+    from unittest.mock import patch
+
+    env = make_env('PointLTL1MASAR1-v0', flat=True)
+    try:
+        env.reset(seed=0)
+        task = env.unwrapped.task
+        walls = task.walls
+        assert walls.num > 0
+        assert hasattr(walls, 'closest_surface_pos')
+
+        obs = task.obs()
+        surface_lidar = task._obs_lidar_pseudo_occluded_new(0, walls)
+        np.testing.assert_allclose(obs['walls_lidar_0'], surface_lidar)
+
+        with patch.object(
+            walls,
+            'closest_surface_pos',
+            side_effect=lambda agent_idx, row: walls.pos[row],
+        ):
+            center_lidar = task._obs_lidar_pseudo_occluded_new(0, walls)
+        assert not np.allclose(surface_lidar, center_lidar)
+
+        # Agent beside long face far from center: surface closer than body center.
+        row = 0
+        center = np.asarray(walls.pos[row], dtype=float)[:2]
+        size = walls.engine.model.geom(f'wall{row}').size
+        xmat = np.asarray(walls.engine.data.body(f'wall{row}').xmat, dtype=float).reshape(3, 3)
+        yaw = float(np.arctan2(xmat[1, 0], xmat[0, 0]))
+        hx, hy = float(size[0]), float(size[1])
+        cos_t, sin_t = np.cos(yaw), np.sin(yaw)
+        local = np.array([hx + 0.25, hy * 0.75])
+        agent_xy = np.array(
+            [
+                cos_t * local[0] - sin_t * local[1] + center[0],
+                sin_t * local[0] + cos_t * local[1] + center[1],
+            ]
+        )
+        from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
+            closest_point_on_box_xy,
+        )
+
+        surface = closest_point_on_box_xy(agent_xy, center, yaw, hx, hy)
+        assert np.linalg.norm(agent_xy - surface) + 1e-6 < np.linalg.norm(agent_xy - center)
+        np.testing.assert_allclose(
+            np.linalg.norm(surface - center),
+            np.hypot(hx, hy * 0.75),
+            atol=1e-6,
+        )
+    finally:
+        env.close()

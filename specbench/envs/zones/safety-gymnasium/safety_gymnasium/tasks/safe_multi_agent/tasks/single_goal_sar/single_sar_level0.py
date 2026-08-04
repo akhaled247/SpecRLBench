@@ -395,7 +395,7 @@ class SingleGoalSARLevel0(BaseTask):
             obs[f"{obstacle.name}_lidar_ids_{i}"] = lidar_ids
         elif not is_occluded:
             positions = [
-                obstacle.pos[row]
+                self._lidar_target_pos(i, obstacle, row)
                 for row in range(obstacle.num)
                 if row not in skip_rows
             ]

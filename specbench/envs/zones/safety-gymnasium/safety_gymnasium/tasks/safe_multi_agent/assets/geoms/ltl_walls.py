@@ -20,6 +20,9 @@ import numpy as np
 from safety_gymnasium.tasks.safe_multi_agent.assets.color import COLOR
 from safety_gymnasium.tasks.safe_multi_agent.assets.group import GROUP
 from safety_gymnasium.tasks.safe_multi_agent.bases.base_object import Geom
+from safety_gymnasium.tasks.safe_multi_agent.utils.sar_utils import (
+    closest_surface_pos_for_named_box,
+)
 
 
 @dataclass
@@ -146,6 +149,12 @@ class LtlWalls(Geom):  # pylint: disable=too-many-instance-attributes
     @staticmethod
     def calculate_wall_distance(pos: float, threshold: float, gain: float = 1):
         return np.exp(-gain * np.abs(pos - threshold))
+
+    def closest_surface_pos(self, agent_idx: int, row: int) -> np.ndarray:
+        """Nearest XY point on wall segment ``row`` to the agent (not body center)."""
+        agent_xy = np.asarray(self.agent.get_agent_pos(agent_idx), dtype=float)[:2]
+        body_name = f'{self.name[:-1]}{row}'
+        return closest_surface_pos_for_named_box(self.engine, body_name, agent_xy)
 
     @property
     def pos(self):
