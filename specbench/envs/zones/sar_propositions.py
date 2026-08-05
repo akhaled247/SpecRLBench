@@ -14,7 +14,10 @@ if TYPE_CHECKING:
 
 TEAM_PROPS = ("all_entrapped", "all_surface")
 WALLS_PROP = "walls"
-# Cost keys that activate the ``walls`` atomic proposition.
+ANY_WALLS = "any_walls"
+ANY_SURFACE = "any_surface"
+ANY_PROPS = (ANY_SURFACE, ANY_WALLS)
+# Cost keys that activate the ``walls`` / ``any_walls`` atomic propositions.
 WALLS_COST_KEYS = ("cost_walls", "cost_ltl_walls")
 
 
@@ -23,8 +26,24 @@ def is_entrapped_prop(prop: str) -> bool:
     return prop == "all_entrapped" or prop.startswith("entrapped_")
 
 
+def is_surface_prop(prop: str) -> bool:
+    """True for per-agent ``surface_*``, team ``all_surface``, or ``any_surface``."""
+    return (
+        prop == "all_surface"
+        or prop == ANY_SURFACE
+        or prop.startswith("surface_")
+    )
+
+
 def is_walls_prop(prop: str) -> bool:
-    return prop == WALLS_PROP
+    return prop == WALLS_PROP or prop == ANY_WALLS
+
+
+def is_per_agent_casualty_prop(prop: str) -> bool:
+    if "_" not in prop:
+        return False
+    category, idx = prop.rsplit("_", 1)
+    return idx.isdigit() and category in ("surface", "entrapped")
 
 
 def agent_hit_walls(costs: dict[str, float]) -> bool:
@@ -74,8 +93,11 @@ def normalize_active_propositions(
     team: list[str] = []
     walls = False
     for prop in raw_props:
-        if prop == WALLS_PROP:
+        if is_walls_prop(prop):
             walls = True
+            continue
+        if prop == ANY_SURFACE:
+            # Derived below from surface_*; keep flag only if no surface_i yet.
             continue
         if prop in TEAM_PROPS:
             team.append(prop)
@@ -104,8 +126,11 @@ def normalize_active_propositions(
 
     if include_team_props:
         result.extend(normalize_team_props(team))
+        if any(p.startswith("surface_") for p in result):
+            result.append(ANY_SURFACE)
     if walls:
         result.append(WALLS_PROP)
+        result.append(ANY_WALLS)
     return sorted(result)
 
 
@@ -134,11 +159,11 @@ def team_active_props(task: BaseTask) -> list[str]:
 
 def resolve_casualty_lidar_key(prop: str, agent_idx: int = 0) -> str:
     """Map a proposition name to the per-agent casualty / walls lidar observation key."""
-    if prop == WALLS_PROP:
+    if is_walls_prop(prop):
         return f"walls_lidar_{agent_idx}"
     if prop == "all_entrapped":
         return f"entrapped_casualtys_lidar_{agent_idx}"
-    if prop == "all_surface":
+    if prop == "all_surface" or prop == ANY_SURFACE:
         return f"surface_casualtys_lidar_{agent_idx}"
     if "_" not in prop:
         raise ValueError(
@@ -155,7 +180,7 @@ def resolve_casualty_lidar_keys(
     num_agents: int = 1,
 ) -> list[str]:
     """Return lidar keys to max-pool for a proposition (team props span all agents)."""
-    if prop == WALLS_PROP:
+    if is_walls_prop(prop) or prop == ANY_SURFACE:
         return [resolve_casualty_lidar_key(prop, agent_idx)]
     if prop in TEAM_PROPS:
         return [resolve_casualty_lidar_key(prop, i) for i in range(num_agents)]
@@ -176,7 +201,7 @@ def resolve_casualty_lidar_keys_for_observer(
     prop (e.g. ``surface_0`` while acting as agent 1), fall back to the
     observer's egocentric channel for the same casualty category.
     """
-    if prop == WALLS_PROP:
+    if is_walls_prop(prop) or prop == ANY_SURFACE:
         primary = resolve_casualty_lidar_key(prop, observer_idx)
         if available_keys is None or primary in available_keys:
             return [primary]
@@ -199,3 +224,21 @@ def resolve_casualty_lidar_keys_for_observer(
     if available_keys is not None and fallback in available_keys:
         return [fallback]
     return [primary]
+
+
+def apply_derived_any_props(assignment, propositions: set[str]) -> None:
+    """Mutate assignment: fill missing keys; derive ``any_*`` from base atoms."""
+    for p in propositions:
+        if p not in assignment:
+            assignment[p] = False
+    true = assignment.get_true_propositions()
+    if ANY_WALLS in propositions or WALLS_PROP in propositions:
+        hit = WALLS_PROP in true or ANY_WALLS in true
+        if WALLS_PROP in propositions:
+            assignment[WALLS_PROP] = hit
+        if ANY_WALLS in propositions:
+            assignment[ANY_WALLS] = hit
+    if ANY_SURFACE in propositions:
+        assignment[ANY_SURFACE] = any(
+            p.startswith("surface_") and p.rsplit("_", 1)[-1].isdigit() for p in true
+        )

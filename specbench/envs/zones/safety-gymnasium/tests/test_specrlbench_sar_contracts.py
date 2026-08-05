@@ -624,7 +624,7 @@ def test_normalize_active_propositions_includes_team_props_when_enabled():
         raw, num_agents=2, categories=categories, include_team_props=True,
     )
     assert normalized.count("surface_0") + normalized.count("entrapped_0") == 1
-    assert normalized == ["all_entrapped", "entrapped_0", "surface_1"]
+    assert normalized == ["all_entrapped", "any_surface", "entrapped_0", "surface_1"]
 
 
 def test_normalize_active_propositions_zero_or_one_per_agent():
@@ -647,8 +647,28 @@ def test_normalize_active_propositions_keeps_walls():
     normalized = normalize_active_propositions(
         raw, num_agents=2, categories=categories, include_team_props=True,
     )
-    assert normalized == ["all_entrapped", "surface_0", "walls"]
+    assert normalized == [
+        "all_entrapped", "any_surface", "any_walls", "surface_0", "walls",
+    ]
 
+
+def test_normalize_active_propositions_any_walls_alias():
+    from specbench.envs.zones.sar_propositions import normalize_active_propositions
+
+    categories = {"surface", "entrapped"}
+    raw = ["any_walls", "surface_0"]
+    normalized = normalize_active_propositions(
+        raw, num_agents=2, categories=categories, include_team_props=True,
+    )
+    assert "walls" in normalized and "any_walls" in normalized
+    assert "any_surface" in normalized
+
+
+def test_resolve_any_surface_lidar_key():
+    from specbench.envs.zones.sar_propositions import resolve_casualty_lidar_key
+
+    assert resolve_casualty_lidar_key("any_surface", 1) == "surface_casualtys_lidar_1"
+    assert resolve_casualty_lidar_key("any_walls", 0) == "walls_lidar_0"
 
 def test_normalize_team_props_at_most_one():
     from specbench.envs.zones.sar_propositions import normalize_team_props
@@ -660,7 +680,10 @@ def test_normalize_team_props_at_most_one():
 def test_walls_in_get_propositions():
     env = make_env('PointLTL0MASAR2WC-v0', flat=False)
     try:
-        assert 'walls' in env.get_propositions()
+        props = env.get_propositions()
+        assert 'walls' in props
+        assert 'any_walls' in props
+        assert 'any_surface' in props
     finally:
         env.close()
 
