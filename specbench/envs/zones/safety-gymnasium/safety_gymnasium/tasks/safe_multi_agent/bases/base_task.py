@@ -706,8 +706,9 @@ class BaseTask(Underlying):  # pylint: disable=too-many-instance-attributes,too-
         """True when the first geom surface along agent→target belongs to this instance."""
         agent_pos = np.asarray(self.agent.get_agent_pos(agent_idx), dtype='float64')
         target = np.asarray(target_pos, dtype='float64')
+        # Keep ray height at agent Z when only XY given (Z=0 misses raised geoms — #56 class).
         if target.shape == (2,):
-            target = np.concatenate([target, [0.0]])
+            target = np.concatenate([target, [float(agent_pos[2])]])
         vec = target - agent_pos
         dist_target = float(np.linalg.norm(vec))
         if dist_target < 1e-9:

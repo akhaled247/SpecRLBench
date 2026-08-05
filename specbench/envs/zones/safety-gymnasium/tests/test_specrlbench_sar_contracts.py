@@ -825,3 +825,98 @@ def test_walls_lidar_uses_closest_surface_not_center():
         )
     finally:
         env.close()
+
+
+def _place_agent_near_xy(task, target_xy, *, max_dist: float = 0.12) -> float:
+    """Grid-search Point slide qpos so agent XY is within ``max_dist`` of target."""
+    import mujoco
+
+    target = np.asarray(target_xy, dtype=float)[:2]
+    best = None
+    for dx in np.linspace(-5.0, 5.0, 81):
+        for dy in np.linspace(-5.0, 5.0, 81):
+            task.data.qpos[0] = float(dx)
+            task.data.qpos[1] = float(dy)
+            task.data.qpos[2] = 0.0
+            mujoco.mj_forward(task.model, task.data)
+            pos = np.asarray(task.agent.get_agent_pos(0), dtype=float)[:2]
+            dist = float(np.linalg.norm(pos - target))
+            if best is None or dist < best[0]:
+                best = (dist, float(dx), float(dy))
+            if dist <= max_dist:
+                return dist
+    assert best is not None
+    task.data.qpos[0] = best[1]
+    task.data.qpos[1] = best[2]
+    task.data.qpos[2] = 0.0
+    mujoco.mj_forward(task.model, task.data)
+    return float(best[0])
+
+
+def test_surface_lidar_near_touch_peak_and_rescue_skip_lag():
+    """Near surface → lidar ≳0.9; rescue-step lag keeps peak; next snapshot zeros it."""
+    env = make_env('PointLTL0MASAR1-v0', flat=True)
+    try:
+        env.reset(seed=0)
+        task = env.unwrapped.task
+        surface = task.surface_casualtys
+        assert surface is not None and surface.num >= 1
+
+        dist = _place_agent_near_xy(task, surface.pos[0], max_dist=0.12)
+        assert dist <= 0.12
+
+        obs = task.obs()
+        peak = float(np.asarray(obs['surface_casualtys_lidar_0']).max())
+        assert peak >= 0.9, f'expected near-field peak, got {peak} at dist={dist}'
+        assert task._lidar_line_of_sight(0, surface.pos[0], surface, 0)
+
+        # Clear-LOS regression: reading ≈ geometric expected.
+        exp_gain = float(task.lidar_conf.exp_gain)
+        expected = float(np.exp(-exp_gain * dist))
+        assert abs(peak - expected) < 0.08
+
+        surface.rescued[0] = True
+        task._sync_rescued_casualty_state()
+        obs_lag = task.obs()
+        lag_peak = float(np.asarray(obs_lag['surface_casualtys_lidar_0']).max())
+        assert lag_peak >= 0.9, f'rescue-step lidar should still peak, got {lag_peak}'
+
+        task.snapshot_casualty_lidar_skip()
+        task._sync_entered_building_state()
+        obs_skip = task.obs()
+        assert float(np.asarray(obs_skip['surface_casualtys_lidar_0']).max()) == 0.0
+        assert 0 not in task._surface_last_seen.get(0, {})
+    finally:
+        env.close()
+
+
+def test_surface_lidar_sticky_last_seen_after_occlusion():
+    """After first LOS, occluded surface still injects synthetic lidar from last-seen XY."""
+    from unittest.mock import patch
+
+    env = make_env('PointLTL0MASAR1-v0', flat=True)
+    try:
+        env.reset(seed=0)
+        task = env.unwrapped.task
+        surface = task.surface_casualtys
+        _place_agent_near_xy(task, surface.pos[0], max_dist=0.12)
+
+        obs = task.obs()
+        assert float(np.asarray(obs['surface_casualtys_lidar_0']).max()) >= 0.9
+        assert 0 in task._surface_last_seen[0]
+
+        with patch.object(type(task), '_lidar_line_of_sight', return_value=False):
+            # Never-seen agent stays blank.
+            task._surface_last_seen[0].clear()
+            blank = task.obs()
+            assert float(np.asarray(blank['surface_casualtys_lidar_0']).max()) == 0.0
+            assert task._surface_sticky_active[0] == set()
+
+            # Restore last-seen → sticky inject.
+            task._surface_last_seen[0][0] = np.asarray(surface.pos[0][:2], dtype=float).copy()
+            sticky = task.obs()
+            sticky_peak = float(np.asarray(sticky['surface_casualtys_lidar_0']).max())
+            assert sticky_peak > 0.0
+            assert 0 in task._surface_sticky_active[0]
+    finally:
+        env.close()

@@ -86,6 +86,11 @@ class SingleGoalSARLevel0(BaseTask):
         self.last_dist_casualty = None
         self._buildings_entered: set[int] = set()
         self._lidar_suppressed_geom_ids: set[int] = set()
+        # Lagged skip set: updated by snapshot_casualty_lidar_skip at step start.
+        self._casualty_lidar_skip_rows: dict[str, frozenset[int]] = {}
+        # Per-agent last LOS world XY for surface casualties (sticky when occluded).
+        self._surface_last_seen: dict[int, dict[int, np.ndarray]] = {}
+        self._surface_sticky_active: dict[int, set[int]] = {}
 
         # Spawn agents in a specified area
         self._build_agent(
@@ -242,6 +247,9 @@ class SingleGoalSARLevel0(BaseTask):
         self.last_dist_casualty = [self._dist_to_casualty(i) for i in range(self.agent_num)]
         self._buildings_entered = set()
         self._lidar_suppressed_geom_ids = set()
+        self._surface_last_seen = {i: {} for i in range(self.agent_num)}
+        self._surface_sticky_active = {i: set() for i in range(self.agent_num)}
+        self.snapshot_casualty_lidar_skip()
         buildings = building_geom(self)
         if buildings is not None:
             buildings.prev_contact = [False] * buildings.num
@@ -259,32 +267,91 @@ class SingleGoalSARLevel0(BaseTask):
             geoms.append(self.entrapped_casualtys)
         return geoms
 
-    def _sync_rescued_casualty_state(self) -> None:
-        """Hide rescued casualties: alpha=0 + lidar suppress (mirror buildings)."""
-        if not hasattr(self, 'model') or self.model is None:
-            return
-        suppressed = set(getattr(self, '_lidar_suppressed_geom_ids', set()))
+    def snapshot_casualty_lidar_skip(self) -> None:
+        """Freeze lidar-skip rows from current ``rescued`` (call at step start)."""
+        skip: dict[str, frozenset[int]] = {}
         for geom in self._casualty_geoms():
             rescued = getattr(geom, 'rescued', None)
             if rescued is None:
                 continue
+            skip[geom.name] = frozenset(i for i, flag in enumerate(rescued) if flag)
+        self._casualty_lidar_skip_rows = skip
+
+    def _sync_rescued_casualty_state(self) -> None:
+        """Hide rescued casualties: alpha=0 immediately; lidar suppress lagged one step."""
+        if not hasattr(self, 'model') or self.model is None:
+            return
+        suppressed = set(getattr(self, '_lidar_suppressed_geom_ids', set()))
+        skip_map = getattr(self, '_casualty_lidar_skip_rows', {})
+        for geom in self._casualty_geoms():
+            rescued = getattr(geom, 'rescued', None)
+            if rescued is None:
+                continue
+            lidar_skip = skip_map.get(geom.name, frozenset())
             for row, is_rescued in enumerate(rescued):
                 geom_id = self._obstacle_geom_id_for_instance(geom, row)
                 if geom_id is None:
                     continue
                 if is_rescued:
-                    suppressed.add(geom_id)
                     self.model.geom_rgba[geom_id][-1] = 0.0
+                    # Keep geom lidar-hit until skip snapshot catches up (rescue-step peak).
+                    if row in lidar_skip:
+                        suppressed.add(geom_id)
+                    else:
+                        suppressed.discard(geom_id)
                 else:
                     suppressed.discard(geom_id)
                     self.model.geom_rgba[geom_id][-1] = float(geom.alpha)
         self._lidar_suppressed_geom_ids = suppressed
 
     def _rescued_casualty_rows(self, obstacle) -> frozenset[int]:
+        """Rows omitted from casualty lidar (lagged snapshot when present)."""
+        skip_map = getattr(self, '_casualty_lidar_skip_rows', None)
+        if skip_map is not None:
+            return skip_map.get(obstacle.name, frozenset())
         rescued = getattr(obstacle, 'rescued', None)
         if rescued is None:
             return frozenset()
         return frozenset(i for i, flag in enumerate(rescued) if flag)
+
+    def _apply_surface_last_seen_lidar(self, obs: dict) -> None:
+        """Update sticky last-seen XY; inject synthetic surface lidar when occluded."""
+        surface = getattr(self, 'surface_casualtys', None)
+        if surface is None or not getattr(surface, 'is_lidar_observed', False):
+            return
+        if not hasattr(self, '_surface_last_seen') or not self._surface_last_seen:
+            self._surface_last_seen = {i: {} for i in range(self.agent_num)}
+        if not hasattr(self, '_surface_sticky_active'):
+            self._surface_sticky_active = {i: set() for i in range(self.agent_num)}
+
+        skip = self._rescued_casualty_rows(surface)
+
+        for agent_idx in range(self.agent_num):
+            key = f'{surface.name}_lidar_{agent_idx}'
+            if key not in obs:
+                continue
+            vals = np.asarray(obs[key], dtype=np.float64).copy()
+            agent_seen = self._surface_last_seen.setdefault(agent_idx, {})
+            sticky_rows = self._surface_sticky_active.setdefault(agent_idx, set())
+            sticky_rows.clear()
+
+            for row in list(agent_seen.keys()):
+                if row in skip:
+                    del agent_seen[row]
+
+            for row in range(int(surface.num)):
+                if row in skip:
+                    continue
+                pos = np.asarray(self._lidar_target_pos(agent_idx, surface, row), dtype=float)
+                los = bool(self._lidar_line_of_sight(agent_idx, pos, surface, row))
+                if los:
+                    agent_seen[row] = np.asarray(pos[:2], dtype=float).copy()
+                elif row in agent_seen:
+                    self._accumulate_pseudo_lidar_reading(
+                        vals, agent_idx, agent_seen[row],
+                    )
+                    sticky_rows.add(row)
+            obs[key] = vals
 
     def _sync_entered_building_state(self) -> None:
         """Sticky-hide entered building shells for the rest of the episode."""
@@ -485,6 +552,7 @@ class SingleGoalSARLevel0(BaseTask):
             if hasattr(obstacle, 'is_comp_observed') and obstacle.is_comp_observed:
                 obs[obstacle.name + '_comp'] = self._obs_compass(obstacle.pos)
 
+        self._apply_surface_last_seen_lidar(obs)
         self._merge_arena_into_walls_lidar(obs)
 
         buildings = building_geom(self)

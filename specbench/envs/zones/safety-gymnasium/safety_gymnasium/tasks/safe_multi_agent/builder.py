@@ -259,6 +259,11 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         )
         global_action = action_matrix.flatten()
 
+        # Freeze casualty lidar-skip from prior rescued flags before cost may flip them
+        # (one-frame lag so the rescue step still emits near-field surface lidar).
+        if hasattr(self.task, 'snapshot_casualty_lidar_skip'):
+            self.task.snapshot_casualty_lidar_skip()
+
         # print(f"DEBUG: global_action = {global_action}")
         exception = self.task.simulation_forward(global_action)
         if exception:
