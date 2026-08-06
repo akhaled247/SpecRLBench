@@ -652,6 +652,19 @@ def test_normalize_active_propositions_keeps_walls():
     ]
 
 
+def test_normalize_active_propositions_sa_walls_only():
+    """SA (1 agent): emit walls without coordinator any_walls."""
+    from specbench.envs.zones.sar_propositions import normalize_active_propositions
+
+    categories = {"surface", "entrapped"}
+    raw = ["surface_0", "walls"]
+    normalized = normalize_active_propositions(
+        raw, num_agents=1, categories=categories, include_team_props=False,
+    )
+    assert normalized == ["surface_0", "walls"]
+    assert "any_walls" not in normalized
+
+
 def test_normalize_active_propositions_any_walls_alias():
     from specbench.envs.zones.sar_propositions import normalize_active_propositions
 
@@ -662,6 +675,18 @@ def test_normalize_active_propositions_any_walls_alias():
     )
     assert "walls" in normalized and "any_walls" in normalized
     assert "any_surface" in normalized
+
+
+def test_normalize_active_propositions_any_walls_alias_sa_strips_coordinator():
+    from specbench.envs.zones.sar_propositions import normalize_active_propositions
+
+    categories = {"surface", "entrapped"}
+    raw = ["any_walls", "surface_0"]
+    normalized = normalize_active_propositions(
+        raw, num_agents=1, categories=categories, include_team_props=False,
+    )
+    assert normalized == ["surface_0", "walls"]
+    assert "any_walls" not in normalized
 
 
 def test_resolve_any_surface_lidar_key():
@@ -684,6 +709,19 @@ def test_walls_in_get_propositions():
         assert 'walls' in props
         assert 'any_walls' in props
         assert 'any_surface' in props
+    finally:
+        env.close()
+
+
+def test_sa_get_propositions_no_any_walls():
+    """Single-agent SAR alphabet: walls + per-agent casualties, no any_walls."""
+    env = make_env('PointLTL1MASAR1WC-v0', flat=True)
+    try:
+        props = env.get_propositions()
+        assert 'walls' in props
+        assert 'any_walls' not in props
+        assert 'entrapped_0' in props
+        assert 'surface_0' in props
     finally:
         env.close()
 

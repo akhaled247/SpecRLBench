@@ -59,7 +59,9 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
             self.atomic_propositions.update(TEAM_PROPS)
             self.atomic_propositions.add(ANY_SURFACE)
         self.atomic_propositions.add(WALLS_PROP)
-        self.atomic_propositions.add(ANY_WALLS)
+        # ``any_walls`` is MA/coordinator-only; SA alphabet is walls + per-agent casualties.
+        if self.num_agents > 1:
+            self.atomic_propositions.add(ANY_WALLS)
 
         if self.flat:
             act_space = env.action_space
@@ -113,7 +115,8 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
 
         if hit_walls:
             info['propositions'].append(WALLS_PROP)
-            info['propositions'].append(ANY_WALLS)
+            if self.num_agents > 1:
+                info['propositions'].append(ANY_WALLS)
 
         if expose_team:
             info['propositions'].extend(normalize_team_props(team_active_props(task)))
@@ -123,6 +126,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
             num_agents=self.num_agents,
             categories=self.categories,
             include_team_props=expose_team,
+            include_any_walls=self.num_agents > 1,
         )
 
         mission_complete = all(self.env.unwrapped.task.goal_achieved)
@@ -230,5 +234,7 @@ class SafetyGymWrapperMASAR(SafetyGymWrapperMA):
         if should_expose_team_props(task):
             props.update(TEAM_PROPS)
             props.add(ANY_SURFACE)
-        props.update({WALLS_PROP, ANY_WALLS})
+        props.add(WALLS_PROP)
+        if self.num_agents > 1:
+            props.add(ANY_WALLS)
         return sorted(props)

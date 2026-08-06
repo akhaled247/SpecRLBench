@@ -87,8 +87,15 @@ def normalize_active_propositions(
     num_agents: int,
     categories: set[str],
     include_team_props: bool,
+    include_any_walls: bool | None = None,
 ) -> list[str]:
-    """Collapse runtime props to match get_possible_assignments."""
+    """Collapse runtime props to match get_possible_assignments.
+
+    ``any_walls`` is a team/coordinator atom: default on only when ``num_agents > 1``.
+    SA alphabets keep ``walls`` alone so curriculum single-prop avoid matches.
+    """
+    if include_any_walls is None:
+        include_any_walls = num_agents > 1
     per_agent: dict[int, list[str]] = {i: [] for i in range(num_agents)}
     team: list[str] = []
     walls = False
@@ -130,7 +137,8 @@ def normalize_active_propositions(
             result.append(ANY_SURFACE)
     if walls:
         result.append(WALLS_PROP)
-        result.append(ANY_WALLS)
+        if include_any_walls:
+            result.append(ANY_WALLS)
     return sorted(result)
 
 
