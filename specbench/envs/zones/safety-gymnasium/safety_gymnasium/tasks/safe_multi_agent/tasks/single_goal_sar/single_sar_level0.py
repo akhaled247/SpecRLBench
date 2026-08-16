@@ -494,7 +494,7 @@ class SingleGoalSARLevel0(BaseTask):
     def try_lidar_ids(self, obstacle, obs, i, skip_instance_rows=None):
         """pseudo_occluded lidar with per-instance line-of-sight (walls block view)."""
         skip_rows = skip_instance_rows or frozenset()
-        is_occluded = getattr(obstacle, 'is_occluded', True)
+        is_occluded = False
         if (
             hasattr(obstacle, 'is_lidar_ids_observed')
             and obstacle.is_lidar_ids_observed

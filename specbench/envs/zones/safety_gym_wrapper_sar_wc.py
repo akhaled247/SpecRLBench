@@ -20,9 +20,9 @@ class SafetyGymWrapperMASARWC(SafetyGymWrapperMASAR):
             for _cost_key in self._cost_keys:
                 if float(agent_info.get(_cost_key, 0) or 0) > 0:
                     info["cost"] += 1
-                    hit = True
-                    if isinstance(terminated, dict):
-                        terminated[a] = True
+                    # hit = True
+                    # if isinstance(terminated, dict):
+                    #     terminated[a] = True
         if hit and not isinstance(terminated, dict):
             terminated = True
         return obs, reward, terminated, truncated, info
