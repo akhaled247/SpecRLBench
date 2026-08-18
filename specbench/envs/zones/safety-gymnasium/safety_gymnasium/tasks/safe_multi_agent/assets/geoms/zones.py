@@ -40,12 +40,12 @@ class Zones(Geom):  # pylint: disable=too-many-instance-attributes
         "gray": np.array([0.5, 0.5, 0.5, 1.0]),
     }
 
-    def __init__(self, color: str, size: float, num: int, locations=None, keepout=0.55):
+    def __init__(self, color: str, size: float, num: int, locations=None, placements=None, keepout=0.55):
         self.color_name = color
         self.name = f'{color}_zones'
         self.num = num
         self.size: float = size
-        self.placements: list = None  # Placements list for hazards (defaults to full extents)
+        self.placements: list = placements  # Placements list for hazards (defaults to full extents)
         self.locations: list = locations if locations else []  # Fixed locations to override placements
         self.keepout: float = keepout  # Radius of hazard keepout for placement
         self.alpha: float = 0.25

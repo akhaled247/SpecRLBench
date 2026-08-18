@@ -57,14 +57,18 @@ class Point(BaseAgent):
 
     def debug(self):
         """Apply action which inputted from keyboard."""
-        action = np.array([0, 0, 0, 0])
+        # print(f"keys: {self.debug_info.keys}")
+        action = np.array([0, 0])
         for key in self.debug_info.keys:
             if key == glfw.KEY_I:
                 action[0] += 1
             elif key == glfw.KEY_K:
                 action[0] -= 1
             elif key == glfw.KEY_J:
-                action[2] += 1
+                action[1] += 1
             elif key == glfw.KEY_L:
-                action[2] -= 1
-        self.apply_action(action)
+                action[1] -= 1
+        actions = np.zeros(self.agent_num * 2, dtype=np.float64)
+        # Pre-P0 interleaved ctrl: agent_0 uses indices [0, agent_num].
+        actions[[0, self.agent_num]] = [action[0], action[1]]
+        self.apply_action(actions)

@@ -135,7 +135,7 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         self.terminated: bool = True
         self.truncated: bool = False
 
-        self.render_parameters = RenderConf(render_mode, width, height, camera_id, camera_name)
+        self.unwrapped.render_parameters = RenderConf(render_mode, width, height, camera_id, camera_name)
 
     def _setup_simulation(self) -> None:
         """Set up mujoco the simulation instance."""
@@ -176,13 +176,14 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         self.terminated = False
         self.truncated = False
         self.steps = 0  # Count of steps taken in this episode
+        self._ctrl_layout_asserted = False
 
         self.task.reset()
         self.task.update_world()  # refresh specific settings
         self.task.specific_reset()
         self.task.agent.reset()
 
-        cost = self._cost()
+        cost = self._cost(reset=True)
         # assert that there is no starting cost for each agent
         assert all(cost[agent]['cost_sum'] == 0 for agent in self.possible_agents), f'World has starting cost! {cost}'
         # cost_sum = np.sum([cost[agent]['cost_sum'] for agent in self.possible_agents])
@@ -217,31 +218,51 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
 
         info = {}
 
-        global_action = np.zeros(
-            # pylint: disable-next=consider-using-generator
-            (sum([self.action_space(agent).shape[0] for agent in self.possible_agents]),),
+        agents = list(self.possible_agents)
+        per_agent_dim = int(self.action_space(agents[0]).shape[0])
+        for agent in agents:
+            act = np.asarray(action[agent], dtype=np.float64).reshape(-1)
+            if act.shape != (per_agent_dim,):
+                raise ValueError(
+                    f"Action dimension mismatch for {agent}: {act.shape} vs {(per_agent_dim,)}"
+                )
+
+        # Pre-P0 packing: interleaved [a0_d0, a1_d0, ..., a0_d1, a1_d1, ...].
+        # Empirically required for MA Point; assert live actuator names on first step.
+        from safety_gymnasium.tasks.safe_multi_agent.utils.ma_action_pack import (
+            actuator_names,
+            classify_ctrl_layout,
         )
-        # for index, agent in enumerate(self.possible_agents):
-        #     action[agent] = np.array(action[agent], copy=False)  # cast to ndarray
-        #     if action[agent].shape != self.action_space(agent).shape:  # check action dimension
-        #         raise ValueError('Action dimension mismatch')
-        #     global_action[
-        #         index
-        #         * self.action_space(agent).shape[0] : (index + 1)
-        #         * self.action_space(agent).shape[0]
-        #     ] = action[agent]
 
-        # NOTE: the action is a dict of arrays, each array corresponds to an agent's action
-        # then for this global action, we need to concatenate all agents' actions,
-        # but the dimention order is this: [agent0_dim0, agent1_dim0, ..., agentN_dim0,
-        #                                   agent0_dim1, agent1_dim1, ..., agentN_dim1,
-        #                                   ...,
-        #                                   agent0_dimM, agent1_dimM, ..., agentN_dimM]
+        if not getattr(self, "_ctrl_layout_asserted", False):
+            import warnings
 
-        # Build a 2D array of shape (act_dim, num_agents) where each column is an agent's action
-        action_matrix = np.stack([action[agent] for agent in self.possible_agents], axis=1)  # shape: (act_dim, num_agents)
-        # Flatten in row-major order to get [agent0_dim0, agent1_dim0, ..., agentN_dim0, agent0_dim1, ...]
-        global_action[:] = action_matrix.flatten()
+            names = actuator_names(self.task.model)
+            classified = classify_ctrl_layout(
+                names,
+                num_agents=len(agents),
+                per_agent_dim=per_agent_dim,
+            )
+            if classified != "interleaved" and len(agents) > 1:
+                warnings.warn(
+                    "MA Builder packs actions INTERLEAVED, but live MuJoCo actuators "
+                    f"classify as {classified!r}: {names}. If agents spin/freeze, packing "
+                    "and model order disagree — inspect actuator names.",
+                    stacklevel=2,
+                )
+            self._ctrl_layout_asserted = True
+            self._ctrl_layout_classified = classified
+
+        action_matrix = np.stack(
+            [np.asarray(action[agent], dtype=np.float64).reshape(-1) for agent in agents],
+            axis=1,
+        )
+        global_action = action_matrix.flatten()
+
+        # Freeze casualty lidar-skip from prior rescued flags before cost may flip them
+        # (one-frame lag so the rescue step still emits near-field surface lidar).
+        if hasattr(self.task, 'snapshot_casualty_lidar_skip'):
+            self.task.snapshot_casualty_lidar_skip()
 
         # print(f"DEBUG: global_action = {global_action}")
         exception = self.task.simulation_forward(global_action)
@@ -267,7 +288,9 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
             self.task.specific_step()
 
             # Goal processing
-            if self.task.goal_achieved[0] or self.task.goal_achieved[1]:
+            # Collaborative SAR mission: all agents share the same mission-complete flag.
+            # continue_goal=False on SAR tasks means no respawn after full rescue.
+            if all(self.task.goal_achieved):
                 info['goal_met'] = True
                 if self.task.mechanism_conf.continue_goal:
                     # Update the internal layout
@@ -295,13 +318,14 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         if self.steps >= self.task.num_steps:
             self.truncated = True  # Maximum number of steps in an episode reached
 
-        if self.render_parameters.mode == 'human':
+        if self.unwrapped.render_parameters.mode == 'human':
             self.render()
 
         state = self.task.obs()
         processed_state = self.task.process_obs(state)
         # print(f"DEBUG: processed_state = {processed_state}")
         observations, terminateds, truncateds, infos = {}, {}, {}, {}
+        goal_met = bool(info.get('goal_met', False))
         for agents in self.possible_agents:
             observations[agents] = processed_state[agents]
 
@@ -312,7 +336,14 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
             
             # NOTE: info contains a vary important field 'propositions',
             # which are set in the wrappers, deprecated here
-            infos[agents] = info[agents]
+            agent_info = info[agents]
+            if goal_met:
+                agent_info = dict(agent_info)
+                agent_info['goal_met'] = True
+            infos[agents] = agent_info
+        if goal_met:
+            # Top-level flag for Gymnasium SAR wrappers (alongside per-agent copies).
+            infos['goal_met'] = True
 
         return observations, rewards, costs, terminateds, truncateds, infos
 
@@ -341,12 +372,12 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
 
         return reward
 
-    def _cost(self) -> dict:
+    def _cost(self, reset=False) -> dict:
         """Calculate the current costs and return a dict.
 
         Call exactly once per step.
         """
-        cost = self.task.calculate_cost()
+        cost = self.task.calculate_cost(reset)
 
         # Optionally remove shaping from reward functions.
         if self.task.cost_conf.constrain_indicator:
@@ -380,13 +411,13 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
         - depth_array_list: return a list of frames representing the states of the environment since the last reset.
           Each frame is a numpy.ndarray with shape (x, y), as with `depth_array`.
         """
-        assert self.render_parameters.mode, 'Please specify the render mode when you make env.'
+        assert self.unwrapped.render_parameters.mode, 'Please specify the render mode when you make env.'
         assert (
             not self.task.observe_vision
         ), 'When you use vision envs, you should not call this function explicitly.'
-        return self.task.render(cost=self.cost, **asdict(self.render_parameters))
+        return self.task.render(cost=self.cost, **asdict(self.unwrapped.render_parameters))
 
-    def action_space(self, agent: str) -> gymnasium.spaces.Box:
+    def action_space(self, agent: str) -> gymnasium.spaces.box.Box:
         """Helper to get action space."""
         return self.task.action_space[agent]
 
@@ -428,4 +459,4 @@ class Builder(gymnasium.Env, gymnasium.utils.EzPickle):
     @property
     def render_mode(self) -> str:
         """The render mode."""
-        return self.render_parameters.mode
+        return self.unwrapped.render_parameters.mode

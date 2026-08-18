@@ -21,7 +21,7 @@ class SequenceWrapper(gymnasium.Wrapper):
             # 16 dim for agent status, 16 dim for reach, and 16 dim for avoid
             'features': spaces.Box(-np.inf, np.inf, (48,), dtype=np.float32)
         })
-        self.sample_sequence = sample_sequence
+        self.unwrapped.sample_sequence = sample_sequence
         self.goal_seq = None
         self.num_reached = 0
         self.propositions = set(env.get_propositions())
@@ -72,7 +72,7 @@ class SequenceWrapper(gymnasium.Wrapper):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[
         WrapperObsType, dict[str, Any]]:
         obs, info = super().reset(seed=seed, options=options)
-        self.goal_seq = self.sample_sequence()
+        self.goal_seq = self.unwrapped.sample_sequence()
         self.num_reached = 0
         
         reach, avoid = self.goal_seq[self.num_reached]
@@ -91,32 +91,86 @@ class SequenceWrapper(gymnasium.Wrapper):
             'propositions': info['propositions'],
         }
         
-    def pre_process_obs(self,
+    def pre_process_obs(self, reach, avoid):
+        if "SAR" in self.env.spec.id:
+            obs = self.pre_process_obs_sar(reach, avoid)
+        if "PointLtlSafety" in self.env.spec.id:
+            obs = self.pre_process_obs_zones(reach, avoid)
+        elif "LetterSafetyEnv" in self.env.spec.id:
+            obs = self.pre_process_obs_letter(reach, avoid)
+        return obs
+    
+    def casualty_lidar_key(self, prop: str) -> str:
+      category, idx = prop.rsplit("_", 1)
+      return f"{category}_casualtys_lidar_{idx}"
+    def lidar_for_assignments(self, original_obs, assignments, lidar_dim):
+        keys = []
+        for a in assignments:
+            for prop in a.to_string():  # list, e.g. ["surface_0"]
+                keys.append(self.casualty_lidar_key(prop))
+        if not keys:
+            return np.zeros(lidar_dim, dtype=np.float64)
+        return np.max(np.vstack([original_obs[k] for k in keys]), axis=0)
+    def pre_process_obs_sar(self, reach, avoid):
+        original_obs = self.sar_agent_obs(0)
+        lidar_dim = self.sar_task().lidar_conf.num_bins
+        agent_obs = np.concatenate([
+            original_obs[k].flatten() if np.ndim(original_obs[k]) > 1 else original_obs[k]
+            for k in self.agent_obs_keys
+        ])
+        reach_obs = self.lidar_for_assignments(original_obs, reach, lidar_dim)
+        avoid_obs = self.lidar_for_assignments(original_obs, avoid, lidar_dim)
+        obs = np.concatenate([agent_obs, reach_obs, avoid_obs]).astype(np.float32)
+        assert obs.shape == self.observation_space["features"].shape
+        return obs
+
+    def pre_process_obs_zones(self,
                         reach: frozenset[FrozenAssignment], 
                         avoid: frozenset[FrozenAssignment]) -> np.ndarray:
         """
-        pre-process the observation
+        observation reduction
         """
         original_obs = self.task.original_obs
-        # print(f"original_obs = {original_obs}")
+        lidar_dim = self.task.lidar_conf.num_bins
+        agent_obs = np.concatenate([original_obs[key] for key in self.agent_obs_keys])
+
+        reach_zones = [r.to_string()[0] + "_zones_lidar" for r in list(reach)]
+        avoid_zones = [a.to_string()[0] + "_zones_lidar" for a in list(avoid) if a.to_string()]
         
-        reach_zones = [r.to_string()[0]+"_zones_lidar" for r in list(reach)]
-        avoid_zones = [a.to_string()[0]+"_zones_lidar" for a in list(avoid)]
-        
-        agent_obs_keys = ["accelerometer", "velocimeter", "gyro", "magnetometer", "wall_sensor"]        
-        agent_obs = np.concatenate([original_obs[key].flatten() if original_obs[key].ndim > 1 else original_obs[key] for key in agent_obs_keys])
-        lidar_dim = 16
-        
-        reach_obs = np.vstack([original_obs[color] for color in reach_zones]) # len(reach_zones) x lidar_dim
+        reach_obs = np.vstack([original_obs[color] for color in reach_zones])
         reach_obs = np.max(reach_obs, axis=0) # lidar_dim
         if len(avoid_zones):
-            avoid_obs = np.vstack([original_obs[color] for color in avoid_zones]) # len(avoid_zones) x lidar_dim
+            avoid_obs = np.vstack([original_obs[color] for color in avoid_zones])
             avoid_obs = np.max(avoid_obs, axis=0) # lidar_dim
         else:
             avoid_obs = np.zeros(lidar_dim)
             
         assert agent_obs.shape == reach_obs.shape == avoid_obs.shape == (lidar_dim,)
         return np.concatenate([agent_obs, reach_obs, avoid_obs])
+
+    def pre_process_obs_letter(self,
+                        reach: frozenset[FrozenAssignment], 
+                        avoid: frozenset[FrozenAssignment]) -> np.ndarray:
+        """
+        observation reduction
+        """
+        obs = self.env.original_obs
+        new_obs = np.zeros((obs.shape[0], obs.shape[1]), dtype=obs.dtype)
+        letter_to_index = {letter: i for i, letter in enumerate(self.region_order)}
+        
+        reach_indices = [letter_to_index[r.to_string()[0]] for r in list(reach)]
+        avoid_indices = [letter_to_index[a.to_string()[0]] for a in list(avoid)]
+        
+        reach_mask = np.any(obs[:, :, reach_indices] > 0, axis=2)
+        avoid_mask = np.any(obs[:, :, avoid_indices] > 0, axis=2)
+        agent_mask = obs[:, :, -1] > 0
+        
+        new_obs = np.zeros(obs.shape[:2], dtype=np.float32)
+            # specific values do not matter as long as they are distinct
+        new_obs[avoid_mask] = 0.5
+        new_obs[reach_mask] = 1.0
+        new_obs[agent_mask] = 0.2
+        return new_obs[..., None]
 
 
 class SequenceSafetyWrapper(gymnasium.Wrapper):
@@ -161,7 +215,7 @@ class SequenceSafetyWrapper(gymnasium.Wrapper):
                 'features': spaces.Box(0, 1, (obs_dim, obs_dim, 1), dtype=np.float32)
             })
 
-        self.sample_sequence = sample_sequence
+        self.unwrapped.sample_sequence = sample_sequence
         self.goal_seq = None
         self.reward_scale = 0.0 # 1.0 for dense rewards
         self.cost_scale = 1.0
@@ -207,7 +261,7 @@ class SequenceSafetyWrapper(gymnasium.Wrapper):
             # info['success'] = True if not self.violated else False # for visualization
             # # hard_case
             # reward += 1.0; cost = 0.0; terminated = True
-            self.goal_seq = self.sample_sequence(assignment)
+            self.goal_seq = self.unwrapped.sample_sequence(assignment)
             
             reward = 1.0; cost = 0.0; terminated = False
             # reward = 1.0; cost = 0.0; terminated = True # letter env
@@ -267,7 +321,7 @@ class SequenceSafetyWrapper(gymnasium.Wrapper):
     def reset(self, *, seed: int | None = None, options: dict[str, Any] | None = None) -> tuple[
         WrapperObsType, dict[str, Any]]:
         obs, info = super().reset(seed=seed, options=options)
-        self.goal_seq = self.sample_sequence()
+        self.goal_seq = self.unwrapped.sample_sequence()
         self.num_reached = 0
         # self.violated = False
         

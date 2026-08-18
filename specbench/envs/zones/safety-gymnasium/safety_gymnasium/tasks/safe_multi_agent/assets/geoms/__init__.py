@@ -45,5 +45,5 @@ GEOMS_REGISTER = [
     GoalMagenta,
     GoalYellow,
     Zones,
-    LtlWalls
+    LtlWalls,
 ]

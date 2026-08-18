@@ -42,5 +42,5 @@ GEOMS_REGISTER = [
     Walls,
     Sigwalls,
     Zones,
-    LtlWalls
+    LtlWalls,
 ]

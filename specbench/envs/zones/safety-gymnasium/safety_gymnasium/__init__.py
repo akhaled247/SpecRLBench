@@ -77,6 +77,12 @@ def __combine(tasks, agents, max_episode_steps):
                     env_id = f'{robot_name}{pre}-{VERSION}.{post}'
                 else:
                     env_id = f'{robot_name}{task_name}-{VERSION}'
+            elif 'Ltl' in task_name:
+                if '.' in task_name:
+                    pre, post = task_name.split('.')
+                    env_id = f'{robot_name}{pre}-{VERSION}.{post}'
+                else:
+                    env_id = f'{robot_name}{task_name}-{VERSION}'
             else:
                 env_id = f'{PREFIX}{robot_name}{task_name}-{VERSION}'
             
@@ -93,7 +99,7 @@ def __combine(tasks, agents, max_episode_steps):
             if MAKE_VISION_ENVIRONMENTS:
                 # Vision inputs
                 # print(f"DEBUG: task_name = {task_name}")
-                if "LTL" in task_name:
+                if "LTL" in task_name or "Ltl" in task_name or "SAR" in task_name:
                     if '.' in task_name:
                         pre, post = task_name.split('.')
                         vision_env_name = f'{robot_name}{pre}Vision-{VERSION}.{post}'
@@ -115,7 +121,7 @@ def __combine(tasks, agents, max_episode_steps):
 
             if MAKE_DEBUG_ENVIRONMENTS and robot_name in ['Point', 'Car', 'Racecar']:
                 # Keyboard inputs for debugging
-                if 'LTL' in task_name:
+                if 'LTL' in task_name or 'Ltl' in task_name:
                     debug_env_name = f'{robot_name}{task_name}Debug-{VERSION}'
                 else:
                     debug_env_name = f'{PREFIX}{robot_name}{task_name}Debug-{VERSION}'
@@ -148,6 +154,15 @@ ltl_tasks = {'LTL0': {},
              'LTL2.partial_overlap': {'partial_observability': 'True', 'allow_overlap': 'True'},
              }
 __combine(ltl_tasks, robots, max_episode_steps=None)
+
+# GenZ ZoneEnv (static zones) — PointLtlSafety{N}-v0
+ltl_safety_tasks = {
+    'LtlSafety2': {},
+    'LtlSafety3': {},
+    'LtlSafety4': {},
+    'LtlSafety5': {},
+}
+__combine(ltl_safety_tasks, robots, max_episode_steps=None)
 
 # ----------------------------------------
 # Safety Navigation
@@ -339,7 +354,10 @@ def __combine_multi(tasks, agents, max_episode_steps):
             env_id = f'{robot_name}{task_name}-{VERSION}'
             # env_id = f'{PREFIX}{robot_name}{task_name}-{VERSION}'
             combined_config = copy.deepcopy(task_config)
-            combined_config.update({'agent_name': robot_name})
+            combined_config.update({
+                'agent_name': robot_name,
+                'max_episode_steps': max_episode_steps,
+            })
 
             __register_helper(
                 env_id=env_id,
@@ -351,7 +369,7 @@ def __combine_multi(tasks, agents, max_episode_steps):
 
             if MAKE_VISION_ENVIRONMENTS:
                 # Vision inputs
-                vision_env_name = f'{PREFIX}{robot_name}{task_name}Vision-{VERSION}'
+                vision_env_name = f'{robot_name}{task_name}Vision-{VERSION}'
                 vision_config = {
                     'observe_vision': True,
                     'observation_flatten': False,
@@ -367,7 +385,7 @@ def __combine_multi(tasks, agents, max_episode_steps):
 
             if MAKE_DEBUG_ENVIRONMENTS and robot_name in ['Point', 'Car', 'Racecar']:
                 # Keyboard inputs for debugging
-                debug_env_name = f'{PREFIX}{robot_name}{task_name}Debug-{VERSION}'
+                debug_env_name = f'{robot_name}{task_name}Debug-{VERSION}'
                 debug_config = {'debug': True}
                 debug_config.update(combined_config)
                 __register_helper(
@@ -382,14 +400,17 @@ def __combine_multi(tasks, agents, max_episode_steps):
 # ----------------------------------------
 # Safety Multi-Agent
 # ----------------------------------------
-
 # Multi Goal Environments
 # ----------------------------------------
 # multi_goal_tasks = {'MultiGoal0': {}, 'MultiGoal1': {}, 'MultiGoal2': {}}
 # __combine_multi(multi_goal_tasks, robots, max_episode_steps=1000)
 multi_goal_tasks = {
     'LTL0MA3': {'agent_num': 3},
-    # 'MultiGoal0': {'agent_num': 3}
-    }
+    'LTL0MA5': {'agent_num': 5},
+}
 robots = ['Point']
 __combine_multi(multi_goal_tasks, robots, max_episode_steps=1000)
+
+from safety_gymnasium.register_sar import register_sar_envs  # noqa: E402
+
+register_sar_envs(__combine_multi)
